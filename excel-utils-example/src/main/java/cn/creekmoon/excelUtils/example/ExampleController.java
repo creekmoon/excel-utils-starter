@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Tag(name = "测试API")
 @RestController
@@ -131,7 +129,7 @@ public class ExampleController {
         long end = System.currentTimeMillis();
         System.out.println("执行时间:" + (end - start));
 
-        CellReader<Student> studentCellReader = excelImport.switchSheetAndUseCellReader(0, Student::new);
+        ICellReader<Student> studentCellReader = excelImport.switchSheetAndUseCellReader(0, Student::new);
         studentCellReader.addConvert("A1", Student::setUserName)
                 .addConvert("B1", Student::setFullName)
                 .addConvert("A2", x -> {
@@ -158,7 +156,7 @@ public class ExampleController {
     public void importExcelByCell(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws IOException {
 
         ExcelImport excelImport = ExcelImport.create(file);
-        SheetReader<Student> studentSheetReader = excelImport
+        ITitleReader<Student> studentSheetReader = excelImport
                 .switchSheet(0, Student::new)
                 //从第二行开始,正常读取列
                 .range(1)

@@ -28,6 +28,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 @AutoConfigureMockMvc
 @SpringBootTest
@@ -101,7 +102,7 @@ class ExcelImportTest {
                 .addConvert("邮箱", Student::setEmail)
                 .addConvert("生日", DateConverter::parse, Student::setBirthday)
                 .addConvert("过期时间", LocalDateTimeConverter::parse, Student::setExpTime)
-                .read(false, student -> {
+                .read( student -> {
                     log.info("[测试导入] object={}", student);
                     count.getAndIncrement();
                 });
@@ -146,7 +147,7 @@ class ExcelImportTest {
 
         /*导入测试*/
         ExcelImport excelImport = ExcelImport.create(mockMultipartFile);
-        SheetReader<Student> studentSheetReader = excelImport
+        ITitleReader<Student> studentSheetReader = excelImport
                 .switchSheet(0, Student::new)
                 .range(0, 3, 4)
                 .addConvert("用户名", Student::setUserName)
@@ -181,15 +182,16 @@ class ExcelImportTest {
 
         ExcelImport excelImport = ExcelImport.create(mockMultipartFile);
         // 按index和 按单元格名称读取测试
-        Student sheet1 = excelImport
+        AtomicReference<Student> sheet1 = new AtomicReference<>();
+        excelImport
                 .switchSheetAndUseCellReader(0, Student::new)
                 .addConvert("B1", Student::setUserName)
                 .addConvert("D1", Student::setFullName)
-                .addConvert(0, 5, IntegerConverter::parse, Student::setAge)
-                .read();
-        Assertions.assertEquals(sheet1.getUserName(), "李二狗");
-        Assertions.assertEquals(sheet1.getFullName(), "李云龙");
-        Assertions.assertEquals(sheet1.getAge(), 2000);
+                .addConvert(0,  5, IntegerConverter::parse, Student::setAge)
+                .read(sheet1::set);
+        Assertions.assertEquals(sheet1.get().getUserName(), "李二狗");
+        Assertions.assertEquals(sheet1.get().getFullName(), "李云龙");
+        Assertions.assertEquals(sheet1.get().getAge(), 2000);
 
 
         // 读取合并单元格测试

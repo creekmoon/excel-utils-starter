@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.Comparator;
 
 /**
- * ES连接常量
+ * 导出导入工具类配置常量
  */
 @Component //定义配置类
 @Data //提供get set方法

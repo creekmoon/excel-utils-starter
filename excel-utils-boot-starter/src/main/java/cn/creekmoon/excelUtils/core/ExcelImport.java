@@ -33,20 +33,23 @@ public class ExcelImport {
      */
     public static Semaphore importSemaphore;
 
-    public HashMap<Integer, SheetReader> sheetIndex2SheetReader = new HashMap<>();
+    public HashMap<Integer, ITitleReader> sheetIndex2SheetReader = new HashMap<>();
+    public HashMap<Integer, ReadResult> sheetIndex2ReadResult = new HashMap<>();
 
+    @Deprecated
     public HashMap<Object, HashMap<String, Object>> convertObject2rawData = new HashMap<>();
+    @Deprecated
     public HashMap<Integer, List<Map<String, Object>>> sheetIndex2rawData = new LinkedHashMap<>();
+
+
 
     /*当前导入的文件*/
     protected MultipartFile file;
 
     /*错误次数统计*/
+    @Deprecated
     protected AtomicInteger errorCount = new AtomicInteger(0);
-    /**
-     * 导入结果
-     */
-    protected ExcelExport excelExport;
+
 
 
     private ExcelImport() {
@@ -67,14 +70,13 @@ public class ExcelImport {
         ExcelImport excelImport = new ExcelImport();
         excelImport.file = file;
         excelImport.csvSupport();
-        /*初始化一个导入结果*/
-        excelImport.excelExport = ExcelExport.create();
+
 
         return excelImport;
     }
 
 
-    public static <T> SheetReader<T> create(MultipartFile file, Supplier<T> supplier) {
+    public static <T> ITitleReader<T> create(MultipartFile file, Supplier<T> supplier) {
         ExcelImport excelImport = create(file);
         return excelImport.switchSheet(0, supplier);
     }
@@ -87,12 +89,8 @@ public class ExcelImport {
      * @param <T>
      * @return
      */
-    public <T> CellReader<T> switchSheetAndUseCellReader(int sheetIndex, Supplier<T> supplier) {
-        CellReader<T> reader = new CellReader<>();
-        reader.sheetReaderContext = new SheetReaderContext(sheetIndex, supplier);
-        ;
-        reader.parent = this;
-        return reader;
+    public <T> ICellReader<T> switchSheetAndUseCellReader(int sheetIndex, Supplier<T> supplier) {
+        return HutoolCellReader.of(new SheetReaderContext(sheetIndex, supplier),this);
     }
 
     /**
@@ -128,18 +126,17 @@ public class ExcelImport {
      * @param <T>
      * @return
      */
-    public <T> SheetReader<T> switchSheet(int sheetIndex, Supplier<T> supplier) {
-        SheetReader sheetReader = this.sheetIndex2SheetReader.get(sheetIndex);
+    public <T> ITitleReader<T> switchSheet(int sheetIndex, Supplier<T> supplier) {
+        ITitleReader sheetReader = this.sheetIndex2SheetReader.get(sheetIndex);
         if (sheetReader != null) {
             return sheetReader;
         }
 
         SheetReaderContext context = new SheetReaderContext(sheetIndex, supplier);
 
-        SheetReader<T> reader = new SheetReader<>();
+        HutoolTitleReader<T> reader = new HutoolTitleReader<>();
         reader.sheetReaderContext = context;
         reader.parent = this;
-        reader.sheetWriter = this.excelExport.switchSheet(ExcelExport.generateSheetNameByIndex(sheetIndex), Map.class);
 
 
         sheetIndex2SheetReader.put(reader.sheetReaderContext.sheetIndex, reader);
@@ -236,6 +233,7 @@ public class ExcelImport {
         CleanTempFilesExecutor.cleanTempFileDelay(taskId);
     }
 
+    @Deprecated
     public AtomicInteger getErrorCount() {
         return errorCount;
     }
