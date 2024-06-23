@@ -1,6 +1,7 @@
 package cn.creekmoon.excelUtils.core;
 
 import cn.creekmoon.excelUtils.converter.StringConverter;
+import cn.creekmoon.excelUtils.core.reader.ICellReader;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
 import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
 import cn.creekmoon.excelUtils.util.ExcelCellUtils;
@@ -24,12 +25,12 @@ import static cn.creekmoon.excelUtils.core.ExcelConstants.FIELD_LACK_MSG;
 @Slf4j
 public class HutoolCellReader<R> implements ICellReader<R> {
 
-    private SheetReaderContext sheetReaderContext;
+    protected ReaderContext sheetReaderContext;
 
-    private ExcelImport parent;
+    protected ExcelImport parent;
 
 
-    public static <T> HutoolCellReader<T> of(SheetReaderContext sheetReaderContext, ExcelImport parent)
+    public static <T> HutoolCellReader<T> of(ReaderContext sheetReaderContext, ExcelImport parent)
     {
         HutoolCellReader<T> newInstant = new HutoolCellReader<>();
         newInstant.sheetReaderContext = sheetReaderContext;
@@ -145,7 +146,7 @@ public class HutoolCellReader<R> implements ICellReader<R> {
     }
 
     @Override
-    public SheetReaderContext getSheetReaderContext() {
+    public ReaderContext getSheetReaderContext() {
         return sheetReaderContext;
     }
 
@@ -250,4 +251,8 @@ public class HutoolCellReader<R> implements ICellReader<R> {
     }
 
 
+    @Override
+    public ReaderContext getReaderContext() {
+        return sheetReaderContext;
+    }
 }

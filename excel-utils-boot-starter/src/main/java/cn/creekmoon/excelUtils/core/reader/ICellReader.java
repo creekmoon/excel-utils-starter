@@ -1,5 +1,6 @@
-package cn.creekmoon.excelUtils.core;
+package cn.creekmoon.excelUtils.core.reader;
 
+import cn.creekmoon.excelUtils.core.*;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
 
 import java.io.IOException;
@@ -13,7 +14,7 @@ import java.util.function.BiConsumer;
  *
  * @param <R>
  */
-public interface ICellReader<R> {
+public interface ICellReader<R> extends IReader<R> {
     <T> HutoolCellReader<R> addConvert(String cellReference, ExFunction<String, T> convert, BiConsumer<R, T> setter);
 
     HutoolCellReader<R> addConvert(String cellReference, BiConsumer<R, String> reader);
@@ -41,7 +42,7 @@ public interface ICellReader<R> {
     void read(ExConsumer<R> consumer) throws CheckedExcelException, IOException;
 
 
-    SheetReaderContext getSheetReaderContext();
+    ReaderContext getSheetReaderContext();
 
     ExcelImport getExcelImport();
 }

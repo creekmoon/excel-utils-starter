@@ -1,10 +1,6 @@
 package cn.creekmoon.excelUtils.core;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -13,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  *
  * */
-public class ReadResult<R> {
+public class ReaderResult<R> {
 
 
     /*读取时间审计*/
@@ -27,7 +23,7 @@ public class ReadResult<R> {
     protected AtomicInteger errorCount = new AtomicInteger(0);
 
     /*单元格错误信息统计*/
-    protected LinkedHashMap<Integer,LinkedHashMap<Integer,String>> rowIndex2ColIndex2ErrorMsg = new LinkedHashMap<>();
+//    protected LinkedHashMap<Integer,LinkedHashMap<Integer,String>> rowIndex2ColIndex2ErrorMsg = new LinkedHashMap<>();
 
 
 }

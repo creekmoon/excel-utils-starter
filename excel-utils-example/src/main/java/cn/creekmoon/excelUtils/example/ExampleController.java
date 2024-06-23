@@ -3,7 +3,11 @@ package cn.creekmoon.excelUtils.example;
 import cn.creekmoon.excelUtils.converter.DateConverter;
 import cn.creekmoon.excelUtils.converter.IntegerConverter;
 import cn.creekmoon.excelUtils.converter.LocalDateTimeConverter;
-import cn.creekmoon.excelUtils.core.*;
+import cn.creekmoon.excelUtils.core.ExcelExport;
+import cn.creekmoon.excelUtils.core.ExcelImport;
+import cn.creekmoon.excelUtils.core.TitleReaderResult;
+import cn.creekmoon.excelUtils.core.reader.ICellReader;
+import cn.creekmoon.excelUtils.core.reader.ITitleReader;
 import cn.creekmoon.excelUtils.example.config.exception.MyNewException;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
 import cn.hutool.core.util.RandomUtil;
@@ -153,7 +157,7 @@ public class ExampleController {
      */
     @PostMapping(value = "/importExcelByCell")
     @Operation(summary = "导入数据(读取指定单元格)")
-    public void importExcelByCell(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public void importExcelByCell(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws IOException, InterruptedException {
 
         ExcelImport excelImport = ExcelImport.create(file);
         ITitleReader<Student> studentSheetReader = excelImport
@@ -168,10 +172,11 @@ public class ExampleController {
                 .addConvert("过期时间", LocalDateTimeConverter::parse, Student::setExpTime);
 
 
-        long count = studentSheetReader
-                .readAll()
+        TitleReaderResult<Student> readerResult = studentSheetReader.read();
+        long count = readerResult
+                .getAll()
                 .stream()
-                .peek(student -> studentSheetReader.setResult(student, "读取完毕"))
+                .peek(student -> readerResult.setResult(student, "读取完毕"))
                 .count();
 
         System.out.println("读取到students数量:" + count);

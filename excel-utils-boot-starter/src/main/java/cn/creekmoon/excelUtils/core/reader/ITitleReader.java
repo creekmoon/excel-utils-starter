@@ -1,8 +1,8 @@
-package cn.creekmoon.excelUtils.core;
+package cn.creekmoon.excelUtils.core.reader;
 
+import cn.creekmoon.excelUtils.core.*;
 import lombok.SneakyThrows;
 
-import java.util.List;
 import java.util.function.BiConsumer;
 
 
@@ -13,7 +13,7 @@ import java.util.function.BiConsumer;
  *
  * @param <R>
  */
-public interface ITitleReader<R> {
+public interface ITitleReader<R> extends IReader<R> {
     @SneakyThrows
     Long getSheetRowCount();
 
@@ -33,10 +33,7 @@ public interface ITitleReader<R> {
 
     ExcelImport read(ExConsumer<R> dataConsumer);
 
-    TitleReadResult<R> read() throws InterruptedException;
-
-    @SneakyThrows
-    List<R> readAll();
+    TitleReaderResult<R> read() throws InterruptedException;
 
     ITitleReader<R> range(int titleRowIndex, int firstDataRowIndex, int lastDataRowIndex);
 
@@ -48,7 +45,7 @@ public interface ITitleReader<R> {
 
     ITitleReader<R> disableBlankRowFilter();
 
-    SheetReaderContext getSheetReaderContext();
+    ReaderContext getReaderContext();
 
     ExcelImport getExcelImport();
 

@@ -3,7 +3,11 @@ package cn.creekmoon.excelUtils.example;
 import cn.creekmoon.excelUtils.converter.DateConverter;
 import cn.creekmoon.excelUtils.converter.IntegerConverter;
 import cn.creekmoon.excelUtils.converter.LocalDateTimeConverter;
-import cn.creekmoon.excelUtils.core.*;
+import cn.creekmoon.excelUtils.core.ExcelConstants;
+import cn.creekmoon.excelUtils.core.ExcelExport;
+import cn.creekmoon.excelUtils.core.ExcelImport;
+import cn.creekmoon.excelUtils.core.PathFinder;
+import cn.creekmoon.excelUtils.core.reader.ITitleReader;
 import cn.creekmoon.excelUtils.threadPool.CleanTempFilesExecutor;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
@@ -156,7 +160,7 @@ class ExcelImportTest {
                 .addConvert("邮箱", Student::setEmail)
                 .addConvert("生日", DateConverter::parse, Student::setBirthday)
                 .addConvert("过期时间", LocalDateTimeConverter::parse, Student::setExpTime);
-        List<Student> students = studentSheetReader.readAll();
+        List<Student> students = studentSheetReader.read().getAll();
 
         /*检查是否能够正确读取*/
         Assertions.assertEquals(studentSheetReader.getSheetRowCount(), 1001L);

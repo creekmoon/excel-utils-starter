@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-public class SheetReaderContext {
+public class ReaderContext {
     /**
      * 标题行号 这里是0,意味着第一行是标题
      */
@@ -25,6 +25,9 @@ public class SheetReaderContext {
     public Object currentNewObject;
 
     StringBuilder errorReport = new StringBuilder();
+
+    HashMap<Integer, String> colIndex2Title = new HashMap<>();
+
     /*单元格转换后置处理*/
     protected List<ExConsumer> cellConvertPostProcessors = new ArrayList<>();
     /* 必填项过滤  key=rowIndex  value=<colIndex> */
@@ -54,7 +57,7 @@ public class SheetReaderContext {
     /*标志位,如果标题检查失败, 这个会置为true */
     protected boolean TITLE_CHECK_FAIL_FLAG = false;
 
-    public SheetReaderContext(int sheetIndex, Supplier newObjectSupplier) {
+    public ReaderContext(int sheetIndex, Supplier newObjectSupplier) {
         this.sheetIndex = sheetIndex;
         this.newObjectSupplier = newObjectSupplier;
     }

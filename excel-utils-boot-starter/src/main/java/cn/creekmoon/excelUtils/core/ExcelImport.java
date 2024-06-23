@@ -1,6 +1,9 @@
 package cn.creekmoon.excelUtils.core;
 
 import cn.creekmoon.excelUtils.config.ExcelUtilsConfig;
+import cn.creekmoon.excelUtils.core.reader.ICellReader;
+import cn.creekmoon.excelUtils.core.reader.IReader;
+import cn.creekmoon.excelUtils.core.reader.ITitleReader;
 import cn.creekmoon.excelUtils.threadPool.CleanTempFilesExecutor;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.text.csv.CsvReader;
@@ -11,6 +14,11 @@ import cn.hutool.poi.excel.sax.handler.RowHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,14 +41,13 @@ public class ExcelImport {
      */
     public static Semaphore importSemaphore;
 
-    public HashMap<Integer, ITitleReader> sheetIndex2SheetReader = new HashMap<>();
-    public HashMap<Integer, ReadResult> sheetIndex2ReadResult = new HashMap<>();
+    public HashMap<Integer, IReader> sheetIndex2Reader = new HashMap<>();
+    public HashMap<Integer, ReaderResult> sheetIndex2ReadResult = new HashMap<>();
 
     @Deprecated
     public HashMap<Object, HashMap<String, Object>> convertObject2rawData = new HashMap<>();
     @Deprecated
     public HashMap<Integer, List<Map<String, Object>>> sheetIndex2rawData = new LinkedHashMap<>();
-
 
 
     /*当前导入的文件*/
@@ -49,7 +56,6 @@ public class ExcelImport {
     /*错误次数统计*/
     @Deprecated
     protected AtomicInteger errorCount = new AtomicInteger(0);
-
 
 
     private ExcelImport() {
@@ -76,7 +82,7 @@ public class ExcelImport {
     }
 
 
-    public static <T> ITitleReader<T> create(MultipartFile file, Supplier<T> supplier) {
+    public static <T> IReader<T> create(MultipartFile file, Supplier<T> supplier) {
         ExcelImport excelImport = create(file);
         return excelImport.switchSheet(0, supplier);
     }
@@ -90,7 +96,7 @@ public class ExcelImport {
      * @return
      */
     public <T> ICellReader<T> switchSheetAndUseCellReader(int sheetIndex, Supplier<T> supplier) {
-        return HutoolCellReader.of(new SheetReaderContext(sheetIndex, supplier),this);
+        return HutoolCellReader.of(new ReaderContext(sheetIndex, supplier), this);
     }
 
     /**
@@ -127,19 +133,19 @@ public class ExcelImport {
      * @return
      */
     public <T> ITitleReader<T> switchSheet(int sheetIndex, Supplier<T> supplier) {
-        ITitleReader sheetReader = this.sheetIndex2SheetReader.get(sheetIndex);
+        ITitleReader sheetReader = (ITitleReader) this.sheetIndex2Reader.get(sheetIndex);
         if (sheetReader != null) {
             return sheetReader;
         }
 
-        SheetReaderContext context = new SheetReaderContext(sheetIndex, supplier);
+        ReaderContext context = new ReaderContext(sheetIndex, supplier);
 
         HutoolTitleReader<T> reader = new HutoolTitleReader<>();
-        reader.sheetReaderContext = context;
+        reader.readerContext = context;
         reader.parent = this;
 
 
-        sheetIndex2SheetReader.put(reader.sheetReaderContext.sheetIndex, reader);
+        sheetIndex2Reader.put(reader.readerContext.sheetIndex, reader);
         return reader;
     }
 
@@ -180,6 +186,28 @@ public class ExcelImport {
 
 
     public ExcelImport response(HttpServletResponse response) throws IOException {
+        Workbook workbook = new XSSFWorkbook(file.getInputStream());
+
+        for (Integer targetSheetIndex : sheetIndex2Reader.keySet()) {
+            IReader reader = sheetIndex2Reader.get(targetSheetIndex);
+            if (reader instanceof ITitleReader) {
+                ITitleReader titleReader = (ITitleReader) reader;
+                TitleReaderResult readerResult = (TitleReaderResult) sheetIndex2ReadResult.get(targetSheetIndex);
+                ReaderContext readerContext = reader.getReaderContext();
+                Integer resultColIndex = readerContext.colIndex2Title.keySet().stream().max(Integer::compareTo).get() + 1;
+
+
+                Sheet sheetAt = workbook.getSheetAt(targetSheetIndex);
+                Row row = sheetAt.getRow(readerContext.firstRowIndex);
+                Cell cell = row.createCell(resultColIndex);
+                cell.setCellValue();
+
+
+            }
+
+        }
+
+
         ExcelExport.response(generateResultFile(), excelExport.excelName, response);
         return this;
     }
