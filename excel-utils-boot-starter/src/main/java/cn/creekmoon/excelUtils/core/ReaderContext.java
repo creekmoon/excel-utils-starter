@@ -61,4 +61,13 @@ public class ReaderContext {
         this.sheetIndex = sheetIndex;
         this.newObjectSupplier = newObjectSupplier;
     }
+
+
+    /**
+     * 获取最后一个标题列索引
+     * @return
+     */
+    Integer getLastTitleColumnIndex(){
+        return this.colIndex2Title.keySet().stream().max(Integer::compareTo).get();
+    }
 }

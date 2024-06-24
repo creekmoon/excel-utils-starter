@@ -29,4 +29,19 @@ public interface ITitleReaderResult<R> {
      */
     Long getErrorCount();
 
+
+
+    /**
+     * 获取 数据区的 最后一行的 下标
+     *
+     * @return
+     */
+    Integer getDataLatestRowIndex();
+
+    /**
+     * 获取 数据区的 第一行的 下标
+     *
+     * @return
+     */
+    Integer getDataFirstRowIndex();
 }

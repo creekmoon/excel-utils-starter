@@ -79,6 +79,16 @@ public class TitleReaderResult<R> extends ReaderResult implements ITitleReaderRe
 
     @Override
     public Long getErrorCount() {
-        return 0;
+        return 0L;
+    }
+
+    @Override
+    public Integer getDataLatestRowIndex() {
+        return this.rowIndex2msg.keySet().stream().max(Integer::compareTo).get();
+    }
+
+    @Override
+    public Integer getDataFirstRowIndex() {
+        return this.rowIndex2msg.keySet().stream().min(Integer::compareTo).get();
     }
 }

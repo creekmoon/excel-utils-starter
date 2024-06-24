@@ -189,20 +189,27 @@ public class ExcelImport {
         Workbook workbook = new XSSFWorkbook(file.getInputStream());
 
         for (Integer targetSheetIndex : sheetIndex2Reader.keySet()) {
-            IReader reader = sheetIndex2Reader.get(targetSheetIndex);
-            if (reader instanceof ITitleReader) {
-                ITitleReader titleReader = (ITitleReader) reader;
+            Sheet sheet = workbook.getSheetAt(targetSheetIndex);
+            IReader iReader = sheetIndex2Reader.get(targetSheetIndex);
+
+
+            if (iReader instanceof ITitleReader reader) {
                 TitleReaderResult readerResult = (TitleReaderResult) sheetIndex2ReadResult.get(targetSheetIndex);
                 ReaderContext readerContext = reader.getReaderContext();
-                Integer resultColIndex = readerContext.colIndex2Title.keySet().stream().max(Integer::compareTo).get() + 1;
+                int titleRowIndex = readerContext.titleRowIndex;
+                Integer lastTitleColumnIndex = readerContext.getLastTitleColumnIndex();
+                int msgTitleColumnIndex = lastTitleColumnIndex + 1;
+                Integer dataFirstRowIndex = readerResult.getDataFirstRowIndex();
+                Integer dataLatestRowIndex = readerResult.getDataLatestRowIndex();
 
+                // 设置导入结果标题
+                sheet.getRow(titleRowIndex).createCell(msgTitleColumnIndex).setCellValue(ExcelConstants.RESULT_TITLE);
 
-                Sheet sheetAt = workbook.getSheetAt(targetSheetIndex);
-                Row row = sheetAt.getRow(readerContext.firstRowIndex);
-                Cell cell = row.createCell(resultColIndex);
-                cell.setCellValue();
-
-
+                // 设置导入结果内容
+                for (Integer rowIndex = dataFirstRowIndex; rowIndex <= dataLatestRowIndex; rowIndex++) {
+                    Cell cell = sheet.getRow(rowIndex).createCell(msgTitleColumnIndex);
+                    cell.setCellValue(readerResult.getResultMsg(rowIndex));
+                }
             }
 
         }
