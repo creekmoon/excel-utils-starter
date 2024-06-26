@@ -3,7 +3,6 @@ package cn.creekmoon.excelUtils.config;
 import cn.creekmoon.excelUtils.core.ExcelImport;
 import cn.creekmoon.excelUtils.exception.ExcelUtilsExceptionHandler;
 import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
-import cn.creekmoon.excelUtils.threadPool.CleanTempFilesExecutor;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.beans.BeansException;
@@ -42,14 +41,10 @@ public class ExcelUtilsConfig implements ApplicationContextAware {
 
     @PostConstruct
     public void init() {
-
         /*如果用户实现了ExcelUtilsExceptionHandler接口, 装配用户自己实现的异常处理器*/
         Collection<ExcelUtilsExceptionHandler> values = applicationContext.getBeansOfType(ExcelUtilsExceptionHandler.class).values();
         GlobalExceptionManager.excelUtilsExceptionHandlers.addAll(values);
         GlobalExceptionManager.excelUtilsExceptionHandlers.sort(Comparator.comparing(ExcelUtilsExceptionHandler::getOrder));
-
-        /*装配用户定义的参数*/
-        CleanTempFilesExecutor.init();
         ExcelImport.init();
     }
 }

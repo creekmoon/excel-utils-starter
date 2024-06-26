@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * 读取结果
  */
-public class TitleReaderResult<R> extends ReaderResult implements ITitleReaderResult<R> {
+public class TitleReaderResult<R> extends ReaderResult {
 
 
     AtomicReference<Boolean> EXISTS_CONVERT_FAIL = new AtomicReference<>(false);
@@ -37,13 +37,11 @@ public class TitleReaderResult<R> extends ReaderResult implements ITitleReaderRe
     }
 
 
-    @Override
-    public ITitleReaderResult<R> foreach(ExConsumer<R> dataConsumer) {
+    public TitleReaderResult<R> foreach(ExConsumer<R> dataConsumer) {
         return this.foreach((index, data) -> dataConsumer.accept(data));
     }
 
-    @Override
-    public ITitleReaderResult<R> foreach(ExBiConsumer<Integer, R> rowIndexAndDataConsumer) {
+    public TitleReaderResult<R> foreach(ExBiConsumer<Integer, R> rowIndexAndDataConsumer) {
         rowIndex2data.forEach((rowIndex, data) -> {
             try {
                 rowIndexAndDataConsumer.accept(rowIndex, data);
@@ -56,38 +54,31 @@ public class TitleReaderResult<R> extends ReaderResult implements ITitleReaderRe
         return this;
     }
 
-    @Override
-    public ITitleReaderResult<R> setResultMsg(R data, String msg) {
+    public TitleReaderResult<R> setResultMsg(R data, String msg) {
         return null;
     }
 
-    @Override
     public String getResultMsg(R data) {
         return "";
     }
 
 
-    @Override
-    public ITitleReaderResult<R> setResultMsg(Integer rowIndex, String msg) {
+    public TitleReaderResult<R> setResultMsg(Integer rowIndex, String msg) {
         return null;
     }
 
-    @Override
     public String getResultMsg(Long rowIndex) {
         return "";
     }
 
-    @Override
     public Long getErrorCount() {
         return 0L;
     }
 
-    @Override
     public Integer getDataLatestRowIndex() {
         return this.rowIndex2msg.keySet().stream().max(Integer::compareTo).get();
     }
 
-    @Override
     public Integer getDataFirstRowIndex() {
         return this.rowIndex2msg.keySet().stream().min(Integer::compareTo).get();
     }

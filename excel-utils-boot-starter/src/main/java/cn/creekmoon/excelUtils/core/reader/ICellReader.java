@@ -14,7 +14,7 @@ import java.util.function.BiConsumer;
  *
  * @param <R>
  */
-public interface ICellReader<R> extends IReader<R> {
+public interface ICellReader<R> extends Reader<R> {
     <T> HutoolCellReader<R> addConvert(String cellReference, ExFunction<String, T> convert, BiConsumer<R, T> setter);
 
     HutoolCellReader<R> addConvert(String cellReference, BiConsumer<R, String> reader);

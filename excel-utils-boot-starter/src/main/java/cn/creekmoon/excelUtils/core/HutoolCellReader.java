@@ -137,7 +137,7 @@ public class HutoolCellReader<R> implements ICellReader<R> {
         //新版读取 使用SAX读取模式
         Excel07SaxReader excel07SaxReader = initSaxReader(getSheetReaderContext().sheetIndex, consumer);
         /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
-        excel07SaxReader.read(this.getExcelImport().file.getInputStream(), -1);
+        excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
         if (getSheetReaderContext().errorReport.length() > 0) {
             throw new CheckedExcelException(getSheetReaderContext().errorReport.toString());
         }

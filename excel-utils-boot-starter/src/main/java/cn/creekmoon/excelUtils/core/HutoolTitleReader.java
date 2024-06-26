@@ -1,7 +1,7 @@
 package cn.creekmoon.excelUtils.core;
 
 import cn.creekmoon.excelUtils.converter.StringConverter;
-import cn.creekmoon.excelUtils.core.reader.ITitleReader;
+import cn.creekmoon.excelUtils.core.reader.TitleReader;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
 import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
 import cn.hutool.core.text.StrFormatter;
@@ -19,7 +19,7 @@ import java.util.function.BiConsumer;
 import static cn.creekmoon.excelUtils.core.ExcelConstants.*;
 
 @Slf4j
-public class HutoolTitleReader<R> implements ITitleReader<R> {
+public class HutoolTitleReader<R> implements TitleReader<R> {
 
     protected ReaderContext readerContext;
 
@@ -103,13 +103,14 @@ public class HutoolTitleReader<R> implements ITitleReader<R> {
 
 
     @Override
-    public ExcelImport read(ExConsumer<R> dataConsumer) {
-        return null;
+    public ITitleReaderResult read(ExConsumer<R> dataConsumer) {
+        return read().foreach(dataConsumer);
 
     }
 
+    @SneakyThrows
     @Override
-    public TitleReaderResult<R> read() throws InterruptedException {
+    public TitleReaderResult<R> read()  {
         TitleReaderResult<R> readResult = new TitleReaderResult<>();
         parent.sheetIndex2ReadResult.put(getReaderContext().sheetIndex, readResult);
 
@@ -117,9 +118,9 @@ public class HutoolTitleReader<R> implements ITitleReader<R> {
         ExcelImport.importSemaphore.acquire();
         try {
             //新版读取 使用SAX读取模式
-            Excel07SaxReader excel07SaxReader = initSaxReader(getReaderContext().sheetIndex, readResult);
+            Excel07SaxReader excel07SaxReader = initSaxReader(getReaderContext().sheetIndex);
             /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
-            excel07SaxReader.read(this.getExcelImport().file.getInputStream(), -1);
+            excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
         } catch (Exception e) {
             log.error("SaxReader读取Excel文件异常", e);
         } finally {
@@ -320,21 +321,6 @@ public class HutoolTitleReader<R> implements ITitleReader<R> {
             return false;
         }
         return sourceTitles.containsAll(targetTitles);
-    }
-
-    /**
-     * 设置读取的结果
-     *
-     * @param object 实例化的对象
-     * @param msg    结果
-     */
-    public void setResult(R object, String msg) {
-        getExcelImport().setResult(object, msg);
-    }
-
-
-    public ExcelImport response(HttpServletResponse response) throws IOException {
-        return getExcelImport().response(response);
     }
 
     /**

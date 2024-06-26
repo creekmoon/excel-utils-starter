@@ -3,12 +3,8 @@ package cn.creekmoon.excelUtils.example;
 import cn.creekmoon.excelUtils.converter.DateConverter;
 import cn.creekmoon.excelUtils.converter.IntegerConverter;
 import cn.creekmoon.excelUtils.converter.LocalDateTimeConverter;
-import cn.creekmoon.excelUtils.core.ExcelConstants;
-import cn.creekmoon.excelUtils.core.ExcelExport;
-import cn.creekmoon.excelUtils.core.ExcelImport;
-import cn.creekmoon.excelUtils.core.PathFinder;
-import cn.creekmoon.excelUtils.core.reader.ITitleReader;
-import cn.creekmoon.excelUtils.threadPool.CleanTempFilesExecutor;
+import cn.creekmoon.excelUtils.core.*;
+import cn.creekmoon.excelUtils.core.reader.TitleReader;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.util.ReflectUtil;
@@ -67,7 +63,8 @@ class ExcelImportTest {
         resultActions.andExpect(MockMvcResultMatchers.status().isOk())
                 .andDo(x -> {
                     MockMultipartFile mockFile = new MockMultipartFile("mockFile", x.getResponse().getContentAsByteArray());
-                    ExcelImport.create(mockFile, Student::new)
+                    ExcelImport.create(mockFile)
+                            .switchSheet(0, Student::new)
                             .addConvert("年龄", IntegerConverter::parse, Student::setAge)
                             .addConvert("邮箱", Student::setEmail)
                             .read(data -> {
@@ -98,7 +95,8 @@ class ExcelImportTest {
         AtomicInteger count = new AtomicInteger();
 
         /*第一个sheet导入测试*/
-        ExcelImport read = ExcelImport.create(mockMultipartFile)
+        ExcelImport excelImport = ExcelImport.create(mockMultipartFile);
+        TitleReaderResult read = excelImport
                 .switchSheet(0, Student::new)
                 .addConvert("用户名", Student::setUserName)
                 .addConvert("全名", Student::setFullName)
@@ -106,33 +104,34 @@ class ExcelImportTest {
                 .addConvert("邮箱", Student::setEmail)
                 .addConvert("生日", DateConverter::parse, Student::setBirthday)
                 .addConvert("过期时间", LocalDateTimeConverter::parse, Student::setExpTime)
-                .read( student -> {
+                .read(student -> {
                     log.info("[测试导入] object={}", student);
                     count.getAndIncrement();
                 });
         Assertions.assertEquals(1000, count.get());
 
         /*第二个sheet导入测试*/
-        List<Student> students = read.switchSheet(1, Student::new)
+        TitleReaderResult<Student> sheetResult1 = excelImport.switchSheet(1, Student::new)
                 .addConvert("用户名", Student::setUserName)
                 .addConvert("全名", Student::setFullName)
                 .addConvert("年龄", IntegerConverter::parse, Student::setAge)
                 .addConvert("邮箱", Student::setEmail)
                 .addConvert("生日", DateConverter::parse, Student::setBirthday)
                 .addConvert("过期时间", LocalDateTimeConverter::parse, Student::setExpTime)
-                .readAll();
+                .read();
+        List<Student> students = sheetResult1.getAll();
         Assertions.assertEquals(4, students.size());
         for (Student student : students) {
-            read.setResult(student, ExcelConstants.IMPORT_SUCCESS_MSG);
+            sheetResult1.setResultMsg(student, ExcelConstants.IMPORT_SUCCESS_MSG);
         }
 
         //检查临时文件是否能够正常生成和清理
         ExcelExport excelExport = (ExcelExport) ReflectUtil.getFieldValue(read, "excelExport");
-        Assertions.assertFalse(FileUtil.exist(PathFinder.getAbsoluteFilePath(excelExport.taskId)));
-        read.generateResultFile();
-        Assertions.assertTrue(FileUtil.exist(PathFinder.getAbsoluteFilePath(excelExport.taskId)));
+        Assertions.assertFalse(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
+        excelImport.generateResultFile();
+        Assertions.assertTrue(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
         CleanTempFilesExecutor.cleanTempFileNow(excelExport.taskId);
-        Assertions.assertFalse(FileUtil.exist(PathFinder.getAbsoluteFilePath(excelExport.taskId)));
+        Assertions.assertFalse(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
 
     }
 
@@ -151,7 +150,7 @@ class ExcelImportTest {
 
         /*导入测试*/
         ExcelImport excelImport = ExcelImport.create(mockMultipartFile);
-        ITitleReader<Student> studentSheetReader = excelImport
+        TitleReader<Student> studentSheetReader = excelImport
                 .switchSheet(0, Student::new)
                 .range(0, 3, 4)
                 .addConvert("用户名", Student::setUserName)

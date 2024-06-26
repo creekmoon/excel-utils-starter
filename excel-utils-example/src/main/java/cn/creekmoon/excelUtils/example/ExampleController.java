@@ -7,7 +7,7 @@ import cn.creekmoon.excelUtils.core.ExcelExport;
 import cn.creekmoon.excelUtils.core.ExcelImport;
 import cn.creekmoon.excelUtils.core.TitleReaderResult;
 import cn.creekmoon.excelUtils.core.reader.ICellReader;
-import cn.creekmoon.excelUtils.core.reader.ITitleReader;
+import cn.creekmoon.excelUtils.core.reader.TitleReader;
 import cn.creekmoon.excelUtils.example.config.exception.MyNewException;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
 import cn.hutool.core.util.RandomUtil;
@@ -112,7 +112,8 @@ public class ExampleController {
     public void importExcelBySax(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws IOException, CheckedExcelException {
         //判断这个方法的执行时间
         long start = System.currentTimeMillis();
-        ExcelImport excelImport = ExcelImport.create(file)
+        ExcelImport excelImport1 = ExcelImport.create(file);
+        TitleReaderResult readerResult = excelImport1
                 .switchSheet(0, Student::new)
                 .addConvert("用户名", Student::setUserName)
                 .addConvert("全名", Student::setFullName)
@@ -126,14 +127,16 @@ public class ExampleController {
                         throw new MyNewException("年龄==76");
                     }
                     System.out.println("[正常读取到对象]" + student);
-                })
-                .response(response);
-        System.out.println("错误次数:" + excelImport.getErrorCount());
+                });
+        excelImport1.response(response);
+        System.out.println("错误次数:" + readerResult.getErrorCount());
         //判断这个方法的执行时间
         long end = System.currentTimeMillis();
         System.out.println("执行时间:" + (end - start));
 
-        ICellReader<Student> studentCellReader = excelImport.switchSheetAndUseCellReader(0, Student::new);
+        ICellReader<Student> studentCellReader = ExcelImport
+                .create(file)
+                .switchSheetAndUseCellReader(0, Student::new);
         studentCellReader.addConvert("A1", Student::setUserName)
                 .addConvert("B1", Student::setFullName)
                 .addConvert("A2", x -> {
@@ -160,7 +163,7 @@ public class ExampleController {
     public void importExcelByCell(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws IOException, InterruptedException {
 
         ExcelImport excelImport = ExcelImport.create(file);
-        ITitleReader<Student> studentSheetReader = excelImport
+        TitleReader<Student> studentSheetReader = excelImport
                 .switchSheet(0, Student::new)
                 //从第二行开始,正常读取列
                 .range(1)
