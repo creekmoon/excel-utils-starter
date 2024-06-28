@@ -8,11 +8,9 @@ import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.sax.Excel07SaxReader;
 import cn.hutool.poi.excel.sax.handler.RowHandler;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -26,8 +24,6 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
     protected TitleReaderResult<R> titleReaderResult = new TitleReaderResult<>();
 
     protected ExcelImport parent;
-
-    protected SheetWriter sheetWriter;
 
 
     /**
@@ -103,8 +99,8 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
 
 
     @Override
-    public ITitleReaderResult read(ExConsumer<R> dataConsumer) {
-        return read().foreach(dataConsumer);
+    public TitleReaderResult read(ExConsumer<R> dataConsumer) {
+        return read().foreachAndConsume(dataConsumer);
 
     }
 
@@ -286,6 +282,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                     for (ExConsumer convertPostProcessor : getReaderContext().convertPostProcessors) {
                         convertPostProcessor.accept(currentObject);
                     }
+                    titleReaderResult.rowIndex2msg.put((int) rowIndex, CONVERT_SUCCESS_MSG);
                     rowData.put(RESULT_TITLE, CONVERT_SUCCESS_MSG);
                     /*消费*/
                     titleReaderResult.rowIndex2data.put((int) rowIndex, currentObject);
@@ -293,17 +290,13 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                     getExcelImport().getErrorCount().incrementAndGet();
                     titleReaderResult.errorCount.incrementAndGet();
                     /*写入导出Excel结果*/
+                    titleReaderResult.rowIndex2msg.put((int) rowIndex, GlobalExceptionManager.getExceptionMsg(e));
                     rowData.put(RESULT_TITLE, GlobalExceptionManager.getExceptionMsg(e));
                 }
                 if (currentObject == null && rowData != null) {
                     //假如存在任一数据convert阶段就失败的单, 将打一个标记
                     titleReaderResult.EXISTS_CONVERT_FAIL.set(true);
                 }
-                getExcelImport().convertObject2rawData.put(currentObject, rowData);
-                getExcelImport().sheetIndex2rawData
-                        .computeIfAbsent(getReaderContext().sheetIndex, k -> new ArrayList<>())
-                        .add(rowData);
-
             }
         });
     }
@@ -328,7 +321,6 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      *
      * @return
      */
-    @Override
     public HutoolTitleReader<R> disableTitleConsistencyCheck() {
         this.getReaderContext().ENABLE_TITLE_CHECK = false;
         return this;
@@ -339,7 +331,6 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      *
      * @return
      */
-    @Override
     public HutoolTitleReader<R> disableBlankRowFilter() {
         this.getReaderContext().ENABLE_BLANK_ROW_FILTER = false;
         return this;

@@ -41,10 +41,6 @@ public interface TitleReader<R> extends Reader<R> {
 
     TitleReader<R> range(int startRowIndex);
 
-    TitleReader<R> disableTitleConsistencyCheck();
-
-    TitleReader<R> disableBlankRowFilter();
-
     ReaderContext getReaderContext();
 
     ExcelImport getExcelImport();

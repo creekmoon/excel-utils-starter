@@ -6,7 +6,7 @@ import cn.creekmoon.excelUtils.converter.LocalDateTimeConverter;
 import cn.creekmoon.excelUtils.core.ExcelExport;
 import cn.creekmoon.excelUtils.core.ExcelImport;
 import cn.creekmoon.excelUtils.core.TitleReaderResult;
-import cn.creekmoon.excelUtils.core.reader.ICellReader;
+import cn.creekmoon.excelUtils.core.reader.CellReader;
 import cn.creekmoon.excelUtils.core.reader.TitleReader;
 import cn.creekmoon.excelUtils.example.config.exception.MyNewException;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
@@ -134,7 +134,7 @@ public class ExampleController {
         long end = System.currentTimeMillis();
         System.out.println("执行时间:" + (end - start));
 
-        ICellReader<Student> studentCellReader = ExcelImport
+        CellReader<Student> studentCellReader = ExcelImport
                 .create(file)
                 .switchSheetAndUseCellReader(0, Student::new);
         studentCellReader.addConvert("A1", Student::setUserName)
@@ -176,14 +176,15 @@ public class ExampleController {
 
 
         TitleReaderResult<Student> readerResult = studentSheetReader.read();
+
         long count = readerResult
                 .getAll()
                 .stream()
-                .peek(student -> readerResult.setResult(student, "读取完毕"))
+                .peek(student -> readerResult.setResultMsg(student, "读取完毕"))
                 .count();
 
         System.out.println("读取到students数量:" + count);
-        studentSheetReader.response(response);
+        excelImport.response(response);
     }
 
 

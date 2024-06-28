@@ -1,7 +1,7 @@
 package cn.creekmoon.excelUtils.core;
 
 import cn.creekmoon.excelUtils.converter.StringConverter;
-import cn.creekmoon.excelUtils.core.reader.ICellReader;
+import cn.creekmoon.excelUtils.core.reader.CellReader;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
 import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
 import cn.creekmoon.excelUtils.util.ExcelCellUtils;
@@ -23,7 +23,7 @@ import static cn.creekmoon.excelUtils.core.ExcelConstants.CONVERT_FAIL_MSG;
 import static cn.creekmoon.excelUtils.core.ExcelConstants.FIELD_LACK_MSG;
 
 @Slf4j
-public class HutoolCellReader<R> implements ICellReader<R> {
+public class HutoolCellReader<R> implements CellReader<R> {
 
     protected ReaderContext sheetReaderContext;
 

@@ -1,12 +1,10 @@
 package cn.creekmoon.excelUtils.core;
 
 import cn.creekmoon.excelUtils.config.ExcelUtilsConfig;
-import cn.creekmoon.excelUtils.core.reader.ICellReader;
+import cn.creekmoon.excelUtils.core.reader.CellReader;
 import cn.creekmoon.excelUtils.core.reader.Reader;
 import cn.creekmoon.excelUtils.core.reader.TitleReader;
-
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.io.file.PathUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.text.csv.CsvReader;
 import cn.hutool.core.text.csv.CsvRow;
@@ -28,7 +26,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -47,11 +47,6 @@ public class ExcelImport {
 
     public HashMap<Integer, Reader> sheetIndex2Reader = new HashMap<>();
     public HashMap<Integer, ReaderResult> sheetIndex2ReadResult = new HashMap<>();
-
-    @Deprecated
-    public HashMap<Object, HashMap<String, Object>> convertObject2rawData = new HashMap<>();
-    @Deprecated
-    public HashMap<Integer, List<Map<String, Object>>> sheetIndex2rawData = new LinkedHashMap<>();
 
     /*唯一识别名称 会同步生成一份文件到临时目录*/
     public String taskId = UUID.fastUUID().toString();
@@ -95,7 +90,7 @@ public class ExcelImport {
      * @param <T>
      * @return
      */
-    public <T> ICellReader<T> switchSheetAndUseCellReader(int sheetIndex, Supplier<T> supplier) {
+    public <T> CellReader<T> switchSheetAndUseCellReader(int sheetIndex, Supplier<T> supplier) {
         return HutoolCellReader.of(new ReaderContext(sheetIndex, supplier), this);
     }
 
