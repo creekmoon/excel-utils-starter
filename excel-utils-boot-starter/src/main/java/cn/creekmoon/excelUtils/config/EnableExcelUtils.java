@@ -21,7 +21,7 @@ public @interface EnableExcelUtils {
     /**
      * 能并行执行多少个导入任务 防止内存溢出 初始化后会赋值给ExcelUtilsConfig
      */
-    int importMaxParallel() default 4;
+    int importMaxParallel() default 2;
 
     /**
      * 临时文件的保留寿命 单位分钟  初始化后会赋值给ExcelUtilsConfig

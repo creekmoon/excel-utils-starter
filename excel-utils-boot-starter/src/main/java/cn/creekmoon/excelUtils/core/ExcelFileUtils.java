@@ -14,6 +14,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -60,25 +61,25 @@ public class ExcelFileUtils {
     /**
      * 返回Excel
      *
-     * @param filePath          本地文件路径
-     * @param responseExcelName 声明的文件名称,前端能看到 可以自己乱填
-     * @param response          servlet请求
+     * @param filePath 本地文件路径
+     * @param fileName 声明的文件名称,前端能看到 可以自己乱填
+     * @param response servlet请求
      * @throws IOException
      */
     /*回应请求*/
-    private static void responseByFilePath(String filePath, String responseExcelName, HttpServletResponse response) throws IOException {
+    public static void responseByFilePath(String filePath, String fileName, HttpServletResponse response) throws IOException {
         /*现代浏览器标准, RFC5987标准协议 显式指定文件名的编码格式为UTF-8 但是这样swagger-ui不支持回显 比较坑*/
 //        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-//        response.setHeader("Content-Disposition", "attachment;filename*=UTF-8''" + URLEncoder.encode(responseExcelName + ".xlsx", "UTF-8"));
+//        response.setHeader("Content-Disposition", "attachment;filename*=UTF-8''" + URLEncoder.encode(fileName + ".xlsx", "UTF-8"));
 
         /*旧版协议 不能使用中文文件名 但是兼容所有浏览器*/
 //        response.setContentType("application/octet-stream");
-//        response.setHeader("Content-Disposition", "attachment;filename=" + responseExcelName + ".xlsx");
+//        response.setHeader("Content-Disposition", "attachment;filename=" + fileName + ".xlsx");
 
         /*当前的兼容做法, 使用旧版协议, 但是用UTF-8编码文件名. 这样一来支持旧版浏览器下载文件(但文件名乱码), 同时现代浏览器能下载也能会自动解析成中文文件名*/
         response.setContentType("application/octet-stream");
-        responseExcelName = URLEncoder.encode(responseExcelName + ".xlsx", "UTF-8");
-        response.setHeader("Content-Disposition", "attachment;filename=" + responseExcelName);
+        fileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+        response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
 
         /*使用流将文件传输回去*/
         ServletOutputStream out = null;
@@ -161,7 +162,7 @@ public class ExcelFileUtils {
     public static void response(String taskId, String responseExcelName, HttpServletResponse response) throws IOException {
         try {
             if (response != null) {
-                responseByFilePath(ExcelFileUtils.getAbsoluteFilePath(taskId), responseExcelName, response);
+                responseByFilePath(ExcelFileUtils.getAbsoluteFilePath(taskId), responseExcelName + ".xlsx", response);
             }
         } finally {
             cleanTempFileDelay(taskId);
@@ -177,7 +178,7 @@ public class ExcelFileUtils {
                         applicationParentFilePath = new File(ResourceUtils.getURL("classpath:").getPath()).getParentFile().getParentFile().getParent();
                     }
                 } catch (FileNotFoundException e) {
-                  log.error("生成临时目录失败! 请检查!");
+                    log.error("生成临时目录失败! 请检查!");
                 }
             }
         }

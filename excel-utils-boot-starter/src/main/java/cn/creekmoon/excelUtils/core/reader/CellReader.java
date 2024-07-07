@@ -1,6 +1,8 @@
 package cn.creekmoon.excelUtils.core.reader;
 
-import cn.creekmoon.excelUtils.core.*;
+import cn.creekmoon.excelUtils.core.ExConsumer;
+import cn.creekmoon.excelUtils.core.ExFunction;
+import cn.creekmoon.excelUtils.core.HutoolCellReader;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
 
 import java.io.IOException;
@@ -40,9 +42,6 @@ public interface CellReader<R> extends Reader<R> {
     <T> HutoolCellReader<R> addConvertPostProcessor(ExConsumer<R> postProcessor);
 
     void read(ExConsumer<R> consumer) throws CheckedExcelException, IOException;
-
-
-    ReaderContext getSheetReaderContext();
-
-    ExcelImport getExcelImport();
 }
+
+

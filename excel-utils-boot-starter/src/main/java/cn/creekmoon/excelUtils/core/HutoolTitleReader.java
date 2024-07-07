@@ -1,9 +1,10 @@
 package cn.creekmoon.excelUtils.core;
 
+import cn.creekmoon.excelUtils.config.ExcelUtilsConfig;
 import cn.creekmoon.excelUtils.converter.StringConverter;
 import cn.creekmoon.excelUtils.core.reader.TitleReader;
 import cn.creekmoon.excelUtils.exception.CheckedExcelException;
-import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
+import cn.creekmoon.excelUtils.exception.GlobalExceptionMsgManager;
 import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.sax.Excel07SaxReader;
@@ -19,12 +20,14 @@ import static cn.creekmoon.excelUtils.core.ExcelConstants.*;
 @Slf4j
 public class HutoolTitleReader<R> implements TitleReader<R> {
 
-    protected ReaderContext readerContext;
 
-    protected TitleReaderResult<R> titleReaderResult = new TitleReaderResult<>();
+    //读取器持有其父类
+    ExcelImport excelImport;
 
-    protected ExcelImport parent;
 
+    public HutoolTitleReader(ExcelImport excelImport) {
+        this.excelImport = excelImport;
+    }
 
     /**
      * 获取SHEET页的总行数
@@ -106,24 +109,21 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
 
     @SneakyThrows
     @Override
-    public TitleReaderResult<R> read()  {
-        TitleReaderResult<R> readResult = new TitleReaderResult<>();
-        parent.sheetIndex2ReadResult.put(getReaderContext().sheetIndex, readResult);
-
+    public TitleReaderResult<R> read() {
         /*尝试拿锁*/
-        ExcelImport.importSemaphore.acquire();
+        ExcelUtilsConfig.importParallelSemaphore.acquire();
         try {
             //新版读取 使用SAX读取模式
-            Excel07SaxReader excel07SaxReader = initSaxReader(getReaderContext().sheetIndex);
+            Excel07SaxReader excel07SaxReader = initSaxReader();
             /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
             excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
         } catch (Exception e) {
             log.error("SaxReader读取Excel文件异常", e);
         } finally {
             /*释放信号量*/
-            ExcelImport.importSemaphore.release();
+            ExcelUtilsConfig.importParallelSemaphore.release();
         }
-        return readResult;
+        return (TitleReaderResult<R>) getReadResult();
     }
 
 
@@ -214,7 +214,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                 this.getReaderContext().title2consumers.get(entry.getKey()).accept(convertObject, convertValue);
             } catch (Exception e) {
                 log.warn("EXCEL导入数据转换失败！", e);
-                throw new CheckedExcelException(StrFormatter.format(ExcelConstants.CONVERT_FAIL_MSG + GlobalExceptionManager.getExceptionMsg(e), entry.getKey()));
+                throw new CheckedExcelException(StrFormatter.format(ExcelConstants.CONVERT_FAIL_MSG + GlobalExceptionMsgManager.getExceptionMsg(e), entry.getKey()));
             }
         }
         return convertObject;
@@ -223,11 +223,13 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
     /**
      * 初始化SAX读取器
      *
-     * @param targetSheetIndex 读取的sheetIndex下标
+     * @param
      * @return
      */
-    Excel07SaxReader initSaxReader(int targetSheetIndex) {
+    Excel07SaxReader initSaxReader() {
 
+        int targetSheetIndex = getReaderContext().sheetIndex;
+        TitleReaderResult titleReaderResult = (TitleReaderResult) getReadResult();
 
         /*返回一个Sax读取器*/
         return new Excel07SaxReader(new RowHandler() {
@@ -247,7 +249,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                 /*读取标题*/
                 if (rowIndex == getReaderContext().titleRowIndex) {
                     for (int colIndex = 0; colIndex < rowList.size(); colIndex++) {
-                        readerContext.colIndex2Title.put(colIndex, StringConverter.parse(rowList.get(colIndex)));
+                        getReaderContext().colIndex2Title.put(colIndex, StringConverter.parse(rowList.get(colIndex)));
                     }
                     return;
                 }
@@ -267,7 +269,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                 /*Excel解析原生的数据*/
                 HashMap<String, Object> rowData = new LinkedHashMap<>();
                 for (int colIndex = 0; colIndex < rowList.size(); colIndex++) {
-                    rowData.put(readerContext.colIndex2Title.get(colIndex), StringConverter.parse(rowList.get(colIndex)));
+                    rowData.put(getReaderContext().colIndex2Title.get(colIndex), StringConverter.parse(rowList.get(colIndex)));
                 }
                 titleReaderResult.rowIndex2rawData.put((int) rowIndex, rowData);
                 /*转换成业务对象*/
@@ -285,13 +287,13 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                     titleReaderResult.rowIndex2msg.put((int) rowIndex, CONVERT_SUCCESS_MSG);
                     rowData.put(RESULT_TITLE, CONVERT_SUCCESS_MSG);
                     /*消费*/
-                    titleReaderResult.rowIndex2data.put((int) rowIndex, currentObject);
+                    titleReaderResult.rowIndex2dataBiMap.put((int) rowIndex, currentObject);
                 } catch (Exception e) {
                     getExcelImport().getErrorCount().incrementAndGet();
                     titleReaderResult.errorCount.incrementAndGet();
                     /*写入导出Excel结果*/
-                    titleReaderResult.rowIndex2msg.put((int) rowIndex, GlobalExceptionManager.getExceptionMsg(e));
-                    rowData.put(RESULT_TITLE, GlobalExceptionManager.getExceptionMsg(e));
+                    titleReaderResult.rowIndex2msg.put((int) rowIndex, GlobalExceptionMsgManager.getExceptionMsg(e));
+                    rowData.put(RESULT_TITLE, GlobalExceptionMsgManager.getExceptionMsg(e));
                 }
                 if (currentObject == null && rowData != null) {
                     //假如存在任一数据convert阶段就失败的单, 将打一个标记
@@ -338,12 +340,22 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
 
     @Override
     public ReaderContext getReaderContext() {
-        return readerContext;
+        Integer sheetIndex = getSheetIndex();
+        return getExcelImport().sheetIndex2ReaderContext.get(sheetIndex);
     }
 
+    @Override
+    public Integer getSheetIndex() {
+        return getExcelImport().sheetIndex2ReaderBiMap.getKey(this);
+    }
+
+    @Override
+    public ReaderResult<R> getReadResult() {
+        return getExcelImport().sheetIndex2ReadResult.get(getSheetIndex());
+    }
 
     @Override
     public ExcelImport getExcelImport() {
-        return getExcelImport();
+        return excelImport;
     }
 }

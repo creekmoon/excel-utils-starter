@@ -1,12 +1,13 @@
 package cn.creekmoon.excelUtils.config;
 
-import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
+import cn.creekmoon.excelUtils.exception.GlobalExceptionMsgManager;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportSelector;
 import org.springframework.core.type.AnnotationMetadata;
 
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 @Configuration
 public class ExcelUtilsAutoConfiguration implements ImportSelector {
@@ -19,10 +20,10 @@ public class ExcelUtilsAutoConfiguration implements ImportSelector {
         Map annotationAttributes = importingClassMetadata.getAnnotationAttributes(EnableExcelUtils.class.getName(), true);
         /*获取配置项 - 自定义异常*/
         for (String customExceptionName : (String[]) annotationAttributes.get("customExceptions")) {
-            GlobalExceptionManager.addExceptionHandler(new GlobalExceptionManager.DefaultExcelUtilsExceptionHandler(customExceptionName));
+            ExcelUtilsConfig.addExcelUtilsExceptionHandler(new GlobalExceptionMsgManager.DirectMessageExceptionHandler(customExceptionName));
         }
         /*获取配置项 - 最大并行导入*/
-        ExcelUtilsConfig.IMPORT_MAX_PARALLEL = Math.max((Integer) annotationAttributes.get("importMaxParallel"), ExcelUtilsConfig.IMPORT_MAX_PARALLEL);
+        ExcelUtilsConfig.importParallelSemaphore = new Semaphore(Math.max((Integer) annotationAttributes.get("importMaxParallel"), 1));
         /*获取配置项 - 临时文件寿命*/
         ExcelUtilsConfig.TEMP_FILE_LIFE_MINUTES = Math.max((Integer) annotationAttributes.get("tempFileLifeMinutes"), ExcelUtilsConfig.TEMP_FILE_LIFE_MINUTES);
 

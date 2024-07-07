@@ -1,11 +1,12 @@
 package cn.creekmoon.excelUtils.core;
 
-import cn.creekmoon.excelUtils.config.ExcelUtilsConfig;
 import cn.creekmoon.excelUtils.core.reader.CellReader;
 import cn.creekmoon.excelUtils.core.reader.Reader;
 import cn.creekmoon.excelUtils.core.reader.TitleReader;
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.lang.UUID;
+import cn.hutool.core.map.BiMap;
 import cn.hutool.core.text.csv.CsvReader;
 import cn.hutool.core.text.csv.CsvRow;
 import cn.hutool.core.util.StrUtil;
@@ -25,11 +26,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -40,12 +39,9 @@ import java.util.function.Supplier;
  */
 @Slf4j
 public class ExcelImport {
-    /**
-     * 控制导入并发数量
-     */
-    public static Semaphore importSemaphore;
 
-    public HashMap<Integer, Reader> sheetIndex2Reader = new HashMap<>();
+    public BiMap<Integer, Reader> sheetIndex2ReaderBiMap = new BiMap<>(new HashMap<>());
+    public HashMap<Integer, ReaderContext> sheetIndex2ReaderContext = new HashMap<>();
     public HashMap<Integer, ReaderResult> sheetIndex2ReadResult = new HashMap<>();
 
     /*唯一识别名称 会同步生成一份文件到临时目录*/
@@ -63,17 +59,7 @@ public class ExcelImport {
     }
 
 
-    public static void init() {
-        if (importSemaphore == null) {
-            importSemaphore = new Semaphore(ExcelUtilsConfig.IMPORT_MAX_PARALLEL);
-        }
-    }
-
-
     public static ExcelImport create(MultipartFile file) throws IOException {
-        if (importSemaphore == null) {
-            throw new RuntimeException("请使用@EnableExcelUtils进行初始化配置!");
-        }
         ExcelImport excelImport = new ExcelImport();
         excelImport.sourceFile = file;
         excelImport.csvSupport();
@@ -81,18 +67,6 @@ public class ExcelImport {
         return excelImport;
     }
 
-
-    /**
-     * 切换读取的sheet页
-     *
-     * @param sheetIndex 下标,从0开始
-     * @param supplier   按行读取时,每行数据的实例化对象构造函数
-     * @param <T>
-     * @return
-     */
-    public <T> CellReader<T> switchSheetAndUseCellReader(int sheetIndex, Supplier<T> supplier) {
-        return HutoolCellReader.of(new ReaderContext(sheetIndex, supplier), this);
-    }
 
     /**
      * 获取SHEET页的总行数
@@ -119,6 +93,7 @@ public class ExcelImport {
         return result.get();
     }
 
+
     /**
      * 切换读取的sheet页
      *
@@ -128,19 +103,42 @@ public class ExcelImport {
      * @return
      */
     public <T> TitleReader<T> switchSheet(int sheetIndex, Supplier<T> supplier) {
-        TitleReader sheetReader = (TitleReader) this.sheetIndex2Reader.get(sheetIndex);
+
+        //如果已经存在读取器
+        TitleReader sheetReader = (TitleReader) this.sheetIndex2ReaderBiMap.get(sheetIndex);
         if (sheetReader != null) {
             return sheetReader;
         }
 
-        ReaderContext context = new ReaderContext(sheetIndex, supplier);
+        //新增读取器
+        HutoolTitleReader<T> reader = new HutoolTitleReader<>(this);
+        this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
+        this.sheetIndex2ReaderContext.put(sheetIndex, new ReaderContext(sheetIndex, supplier));
+        this.sheetIndex2ReadResult.put(sheetIndex, new TitleReaderResult<T>());
+        return reader;
+    }
 
-        HutoolTitleReader<T> reader = new HutoolTitleReader<>();
-        reader.readerContext = context;
-        reader.parent = this;
 
+    /**
+     * 切换读取的sheet页
+     *
+     * @param sheetIndex 下标,从0开始
+     * @param supplier   按行读取时,每行数据的实例化对象构造函数
+     * @param <T>
+     * @return
+     */
+    public <T> CellReader<T> switchSheetAndUseCellReader(int sheetIndex, Supplier<T> supplier) {
+        //如果已经存在读取器
+        CellReader sheetReader = (CellReader) this.sheetIndex2ReaderBiMap.get(sheetIndex);
+        if (sheetReader != null) {
+            return sheetReader;
+        }
 
-        sheetIndex2Reader.put(reader.readerContext.sheetIndex, reader);
+        //新增读取器
+        HutoolCellReader<T> reader = new HutoolCellReader<>(this);
+        this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
+        this.sheetIndex2ReaderContext.put(sheetIndex, new ReaderContext(sheetIndex, supplier));
+        this.sheetIndex2ReadResult.put(sheetIndex, new TitleReaderResult<T>());
         return reader;
     }
 
@@ -172,7 +170,7 @@ public class ExcelImport {
             this.sourceFile = null;
         } finally {
             bigWriter.close();
-            ExcelFileUtils.cleanTempFileDelay(csvTaskId, 30);
+            ExcelFileUtils.cleanTempFileDelay(csvTaskId, 120);
         }
 
         /*将新的xlsx文件替换为当前的文件*/
@@ -183,6 +181,12 @@ public class ExcelImport {
 
     public ExcelImport response(HttpServletResponse response) throws IOException {
         ExcelFileUtils.response(generateResultFile(), taskId, response);
+
+//        IoUtil.copy(sourceFile.getInputStream(), FileUtil.getOutputStream(ExcelFileUtils.getAbsoluteFilePath(this.taskId)));
+//        File file = FileUtil.file(ExcelFileUtils.getAbsoluteFilePath(this.taskId));
+//        System.out.println("file.canRead() = " + file.canRead());
+//        System.out.println("file.canWrite() = " + file.canWrite());
+        ExcelFileUtils.responseByFilePath(ExcelFileUtils.getAbsoluteFilePath(this.taskId), taskId + ".xlsx", response);
         return this;
     }
 
@@ -203,14 +207,14 @@ public class ExcelImport {
      * @return taskId
      */
     public String generateResultFile(boolean autoCleanTempFile) throws IOException {
-        FileUtil.copy(sourceFile.getResource().getFile().toPath(), Path.of(ExcelFileUtils.getAbsoluteFilePath(taskId)));
 
-
-        Workbook workbook = new XSSFWorkbook(ExcelFileUtils.getAbsoluteFilePath(taskId));
+        String absoluteFilePath = ExcelFileUtils.getAbsoluteFilePath(taskId);
+        IoUtil.copy(sourceFile.getInputStream(), FileUtil.getOutputStream(absoluteFilePath));
+        Workbook workbook = new XSSFWorkbook(absoluteFilePath);
         try {
-            for (Integer targetSheetIndex : sheetIndex2Reader.keySet()) {
+            for (Integer targetSheetIndex : sheetIndex2ReaderBiMap.keySet()) {
                 Sheet sheet = workbook.getSheetAt(targetSheetIndex);
-                Reader reader = sheetIndex2Reader.get(targetSheetIndex);
+                Reader reader = sheetIndex2ReaderBiMap.get(targetSheetIndex);
                 if (reader instanceof TitleReader titleReader) {
                     TitleReaderResult readerResult = (TitleReaderResult) sheetIndex2ReadResult.get(targetSheetIndex);
                     ReaderContext readerContext = titleReader.getReaderContext();

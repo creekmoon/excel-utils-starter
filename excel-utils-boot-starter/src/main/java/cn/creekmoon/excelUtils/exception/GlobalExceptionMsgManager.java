@@ -13,14 +13,14 @@ import java.util.List;
  * 全局异常管理器
  */
 @Slf4j
-public class GlobalExceptionManager {
+public class GlobalExceptionMsgManager {
 
     public static final String MSG_PREFIX = "[失败!]";
     public static final String MSG_SUFFIX = "";
     public static List<ExcelUtilsExceptionHandler> excelUtilsExceptionHandlers = new ArrayList<>();
 
     static {
-        addExceptionHandler(new DefaultExcelUtilsExceptionHandler(CheckedExcelException.class));
+        addExceptionHandler(new DirectMessageExceptionHandler(CheckedExcelException.class));
     }
 
     public static String getExceptionMsg(Exception unCatchException) {
@@ -41,20 +41,23 @@ public class GlobalExceptionManager {
         excelUtilsExceptionHandlers.sort(Comparator.comparing(ExcelUtilsExceptionHandler::getOrder));
     }
 
+
     /**
-     * 默认异常处理器
+     * 直达消息处理器(将异常信息透传)
+     * 如果是业务异常, 可以直接展示的就使用这个处理器
+     * 
      */
-    public static class DefaultExcelUtilsExceptionHandler implements ExcelUtilsExceptionHandler {
+    public static class DirectMessageExceptionHandler implements ExcelUtilsExceptionHandler {
 
         /*自定义异常*/
         private Class customExceptionClass = null;
 
-        public DefaultExcelUtilsExceptionHandler(Class customExceptionClass) {
+        public DirectMessageExceptionHandler(Class customExceptionClass) {
             this.customExceptionClass = customExceptionClass;
         }
 
         @SneakyThrows
-        public DefaultExcelUtilsExceptionHandler(String customExceptionClassName) {
+        public DirectMessageExceptionHandler(String customExceptionClassName) {
             this.customExceptionClass = Class.forName(customExceptionClassName);
         }
 

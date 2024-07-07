@@ -130,7 +130,7 @@ class ExcelImportTest {
         Assertions.assertFalse(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
         excelImport.generateResultFile();
         Assertions.assertTrue(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
-        CleanTempFilesExecutor.cleanTempFileNow(excelExport.taskId);
+        ExcelFileUtils.cleanTempFileNow(excelExport.taskId);
         Assertions.assertFalse(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
 
     }

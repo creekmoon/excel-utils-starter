@@ -1,50 +1,36 @@
 package cn.creekmoon.excelUtils.config;
 
-import cn.creekmoon.excelUtils.core.ExcelImport;
 import cn.creekmoon.excelUtils.exception.ExcelUtilsExceptionHandler;
-import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
-import jakarta.annotation.PostConstruct;
+import cn.creekmoon.excelUtils.exception.GlobalExceptionMsgManager;
 import lombok.Data;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.stereotype.Component;
 
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.concurrent.Semaphore;
 
 /**
  * 导出导入工具类配置常量
  */
-@Component //定义配置类
 @Data //提供get set方法
-//@ConfigurationProperties(prefix = "excel-utils")
-public class ExcelUtilsConfig implements ApplicationContextAware {
+public class ExcelUtilsConfig {
 
     /**
-     * 能并行执行多少个导入任务 防止内存溢出
+     * 控制导入并发数量
      */
-    public static int IMPORT_MAX_PARALLEL = 4;
+    public static Semaphore importParallelSemaphore = new Semaphore(4);
 
     /**
      * 临时文件的保留寿命 单位分钟
      */
     public static int TEMP_FILE_LIFE_MINUTES = 5;
 
-    ApplicationContext applicationContext;
 
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
+    public static void addExcelUtilsExceptionHandler(ExcelUtilsExceptionHandler... handlers) {
+        if (handlers == null || handlers.length == 0) {
+            return;
+        }
+        GlobalExceptionMsgManager.excelUtilsExceptionHandlers.addAll(Arrays.asList(handlers));
+        GlobalExceptionMsgManager.excelUtilsExceptionHandlers.sort(Comparator.comparing(ExcelUtilsExceptionHandler::getOrder));
     }
 
-    @PostConstruct
-    public void init() {
-        /*如果用户实现了ExcelUtilsExceptionHandler接口, 装配用户自己实现的异常处理器*/
-        Collection<ExcelUtilsExceptionHandler> values = applicationContext.getBeansOfType(ExcelUtilsExceptionHandler.class).values();
-        GlobalExceptionManager.excelUtilsExceptionHandlers.addAll(values);
-        GlobalExceptionManager.excelUtilsExceptionHandlers.sort(Comparator.comparing(ExcelUtilsExceptionHandler::getOrder));
-        ExcelImport.init();
-    }
 }

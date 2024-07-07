@@ -41,6 +41,8 @@ public interface TitleReader<R> extends Reader<R> {
 
     TitleReader<R> range(int startRowIndex);
 
+    Integer getSheetIndex();
+
     ReaderContext getReaderContext();
 
     ExcelImport getExcelImport();

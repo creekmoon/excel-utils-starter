@@ -1,6 +1,7 @@
 package cn.creekmoon.excelUtils.core;
 
-import cn.creekmoon.excelUtils.exception.GlobalExceptionManager;
+import cn.creekmoon.excelUtils.exception.GlobalExceptionMsgManager;
+import cn.hutool.core.map.BiMap;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,17 +21,15 @@ public class TitleReaderResult<R> extends ReaderResult {
 
     AtomicReference<Boolean> EXISTS_CONVERT_FAIL = new AtomicReference<>(false);
 
-    /*行对象集合*/
-    LinkedHashMap<Integer, R> rowIndex2data = new LinkedHashMap<>();
+    /*K=行下标 V=数据*/
+    BiMap<Integer, R> rowIndex2dataBiMap = new BiMap<>(new LinkedHashMap<>());
 
     /*行结果集合*/
     LinkedHashMap<Integer, String> rowIndex2msg = new LinkedHashMap<>();
 
-    /*行对象集合*/
-    LinkedHashMap<R, Integer> data2rowIndex = new LinkedHashMap<>();
 
     /*原始行对象集合*/
-    LinkedHashMap<Integer, Map<String, Object>> rowIndex2rawData = new LinkedHashMap<>();
+    public LinkedHashMap<Integer, Map<String, Object>> rowIndex2rawData = new LinkedHashMap<>();
 
 
     public List<R> getAll() {
@@ -38,7 +37,7 @@ public class TitleReaderResult<R> extends ReaderResult {
             // 如果转化阶段就存在失败数据, 意味着数据不完整,应该返回空
             return new ArrayList<>();
         }
-        return new ArrayList<>(rowIndex2data.values());
+        return new ArrayList<>(rowIndex2dataBiMap.values());
     }
 
 
@@ -47,12 +46,12 @@ public class TitleReaderResult<R> extends ReaderResult {
     }
 
     public TitleReaderResult<R> foreachAndConsume(ExBiConsumer<Integer, R> rowIndexAndDataConsumer) {
-        rowIndex2data.forEach((rowIndex, data) -> {
+        rowIndex2dataBiMap.forEach((rowIndex, data) -> {
             try {
                 rowIndexAndDataConsumer.accept(rowIndex, data);
                 rowIndex2msg.put(rowIndex, ExcelConstants.IMPORT_SUCCESS_MSG);
             } catch (Exception e) {
-                String exceptionMsg = GlobalExceptionManager.getExceptionMsg(e);
+                String exceptionMsg = GlobalExceptionMsgManager.getExceptionMsg(e);
                 rowIndex2msg.put(rowIndex, exceptionMsg);
             }
         });
@@ -71,10 +70,8 @@ public class TitleReaderResult<R> extends ReaderResult {
 
 
     private @Nullable Integer getDataIndexOrNull(R data) {
-        if (data2rowIndex.size() != rowIndex2data.size()) {
-            log.error("[Excel读取异常]请确保实体类{}不能覆写Equal和HashCode注解.", data.getClass().toString());
-        }
-        Integer i = data2rowIndex.get(data);
+
+        Integer i = rowIndex2dataBiMap.getKey(data);
         if (i == null) {
             log.error("[Excel读取异常]对象不在读取结果中! [{}]", data);
             return null;
@@ -97,8 +94,13 @@ public class TitleReaderResult<R> extends ReaderResult {
         return this;
     }
 
+
+    public String getResultMsg(Integer rowIndex) {
+        return rowIndex2msg.get(rowIndex);
+    }
+
     public String getResultMsg(Long rowIndex) {
-        return rowIndex2msg.get(Math.toIntExact(rowIndex));
+        return getResultMsg(Math.toIntExact(rowIndex));
     }
 
     public Integer getErrorCount() {
