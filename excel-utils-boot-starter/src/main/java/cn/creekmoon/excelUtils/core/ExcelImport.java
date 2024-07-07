@@ -4,7 +4,6 @@ import cn.creekmoon.excelUtils.core.reader.CellReader;
 import cn.creekmoon.excelUtils.core.reader.Reader;
 import cn.creekmoon.excelUtils.core.reader.TitleReader;
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.map.BiMap;
 import cn.hutool.core.text.csv.CsvReader;
@@ -18,12 +17,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
@@ -180,13 +182,12 @@ public class ExcelImport {
 
 
     public ExcelImport response(HttpServletResponse response) throws IOException {
-        ExcelFileUtils.response(generateResultFile(), taskId, response);
-
+        File file = generateResultFile();
 //        IoUtil.copy(sourceFile.getInputStream(), FileUtil.getOutputStream(ExcelFileUtils.getAbsoluteFilePath(this.taskId)));
 //        File file = FileUtil.file(ExcelFileUtils.getAbsoluteFilePath(this.taskId));
 //        System.out.println("file.canRead() = " + file.canRead());
 //        System.out.println("file.canWrite() = " + file.canWrite());
-        ExcelFileUtils.responseByFilePath(ExcelFileUtils.getAbsoluteFilePath(this.taskId), taskId + ".xlsx", response);
+        ExcelFileUtils.response(ExcelFileUtils.getAbsoluteFilePath(this.taskId), taskId + ".xlsx", response);
         return this;
     }
 
@@ -195,7 +196,7 @@ public class ExcelImport {
      *
      * @return taskId
      */
-    public String generateResultFile() throws IOException {
+    public File generateResultFile() throws IOException {
         return this.generateResultFile(true);
     }
 
@@ -203,29 +204,36 @@ public class ExcelImport {
     /**
      * 生成导入结果
      *
-     * @param autoCleanTempFile 自动删除临时文件(后台进行延迟删除)
-     * @return taskId
+     * @param autoClean 是否自动删除临时文件(后台进行延迟删除)
+     * @return File  生成的新结果文件
      */
-    public String generateResultFile(boolean autoCleanTempFile) throws IOException {
+    public File generateResultFile(boolean autoClean) throws IOException {
 
         String absoluteFilePath = ExcelFileUtils.getAbsoluteFilePath(taskId);
-        IoUtil.copy(sourceFile.getInputStream(), FileUtil.getOutputStream(absoluteFilePath));
-        Workbook workbook = new XSSFWorkbook(absoluteFilePath);
-        try {
+
+        try (Workbook workbook = new XSSFWorkbook(sourceFile.getInputStream());
+             BufferedOutputStream outputStream = FileUtil.getOutputStream(absoluteFilePath)) {
             for (Integer targetSheetIndex : sheetIndex2ReaderBiMap.keySet()) {
                 Sheet sheet = workbook.getSheetAt(targetSheetIndex);
                 Reader reader = sheetIndex2ReaderBiMap.get(targetSheetIndex);
                 if (reader instanceof TitleReader titleReader) {
+
+                    //拿上下文状态
                     TitleReaderResult readerResult = (TitleReaderResult) sheetIndex2ReadResult.get(targetSheetIndex);
                     ReaderContext readerContext = titleReader.getReaderContext();
+
+                    // 推算准备要写的位置
                     int titleRowIndex = readerContext.titleRowIndex;
                     Integer lastTitleColumnIndex = readerContext.getLastTitleColumnIndex();
                     int msgTitleColumnIndex = lastTitleColumnIndex + 1;
                     Integer dataFirstRowIndex = readerResult.getDataFirstRowIndex();
                     Integer dataLatestRowIndex = readerResult.getDataLatestRowIndex();
 
-                    // 设置导入结果标题
-                    sheet.getRow(titleRowIndex).createCell(msgTitleColumnIndex).setCellValue(ExcelConstants.RESULT_TITLE);
+                    // 开始写结果行
+                    CellStyle titleCellStyle = sheet.getRow(titleRowIndex).getCell(lastTitleColumnIndex).getCellStyle();
+                    Cell cell1 = sheet.getRow(titleRowIndex).createCell(msgTitleColumnIndex);
+                    cell1.setCellStyle(titleCellStyle);
+                    cell1.setCellValue(ExcelConstants.RESULT_TITLE);
 
                     // 设置导入结果内容
                     for (Integer rowIndex = dataFirstRowIndex; rowIndex <= dataLatestRowIndex; rowIndex++) {
@@ -233,12 +241,11 @@ public class ExcelImport {
                         cell.setCellValue(readerResult.getResultMsg(rowIndex));
                     }
                 }
-
             }
-        } finally {
-            workbook.close();
+            workbook.write(outputStream);
+            outputStream.flush();
         }
-        return taskId;
+        return FileUtil.file(absoluteFilePath);
     }
 
     @Deprecated

@@ -9,10 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.util.ResourceUtils;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -58,16 +55,7 @@ public class ExcelFileUtils {
     }
 
 
-    /**
-     * 返回Excel
-     *
-     * @param filePath 本地文件路径
-     * @param fileName 声明的文件名称,前端能看到 可以自己乱填
-     * @param response servlet请求
-     * @throws IOException
-     */
-    /*回应请求*/
-    public static void responseByFilePath(String filePath, String fileName, HttpServletResponse response) throws IOException {
+    protected static void response(InputStream fileInputStream, String fileName, HttpServletResponse response) throws IOException {
         /*现代浏览器标准, RFC5987标准协议 显式指定文件名的编码格式为UTF-8 但是这样swagger-ui不支持回显 比较坑*/
 //        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 //        response.setHeader("Content-Disposition", "attachment;filename*=UTF-8''" + URLEncoder.encode(fileName + ".xlsx", "UTF-8"));
@@ -82,23 +70,32 @@ public class ExcelFileUtils {
         response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
 
         /*使用流将文件传输回去*/
-        ServletOutputStream out = null;
-        InputStream fileInputStream = null;
-        try {
-            out = response.getOutputStream();
-            fileInputStream = FileUtil.getInputStream(filePath);
+        try (ServletOutputStream out = response.getOutputStream()) {
             byte[] b = new byte[4096];  //创建数据缓冲区  通常网络2-8K 磁盘32K-64K
             int length;
             while ((length = fileInputStream.read(b)) > 0) {
                 out.write(b, 0, length);
             }
             out.flush();
-            out.close();
         } finally {
             IoUtil.close(fileInputStream);
-            IoUtil.close(out);
         }
+    }
 
+
+    /**
+     * 返回Excel
+     *
+     * @param filePath 本地文件路径
+     * @param fileName 声明的文件名称,前端能看到 可以自己乱填
+     * @param response servlet请求
+     * @throws IOException
+     */
+    /*回应请求*/
+    public static void response(String filePath, String fileName, HttpServletResponse response) throws IOException {
+        try (BufferedInputStream inputStream = FileUtil.getInputStream(filePath)) {
+            response(inputStream, fileName, response);
+        }
     }
 
 
@@ -151,23 +148,6 @@ public class ExcelFileUtils {
         }
     }
 
-    /**
-     * 响应请求 返回结果
-     *
-     * @param taskId
-     * @param responseExcelName
-     * @param response
-     * @throws IOException
-     */
-    public static void response(String taskId, String responseExcelName, HttpServletResponse response) throws IOException {
-        try {
-            if (response != null) {
-                responseByFilePath(ExcelFileUtils.getAbsoluteFilePath(taskId), responseExcelName + ".xlsx", response);
-            }
-        } finally {
-            cleanTempFileDelay(taskId);
-        }
-    }
 
     /*获取项目路径*/
     protected static String getApplicationParentFilePath() {

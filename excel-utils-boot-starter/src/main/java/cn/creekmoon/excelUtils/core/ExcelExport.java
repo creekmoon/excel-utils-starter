@@ -118,7 +118,7 @@ public class ExcelExport {
      */
     public void response(HttpServletResponse response) throws IOException {
         String taskId = this.stopWrite();
-        ExcelFileUtils.response(taskId, excelName, response);
+        ExcelFileUtils.response(ExcelFileUtils.getAbsoluteFilePath(taskId), excelName, response);
     }
 
 
