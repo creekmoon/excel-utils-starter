@@ -276,17 +276,16 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                     return;
                 }
 
-                /*Excel解析原生的数据*/
-                HashMap<String, Object> rowData = new LinkedHashMap<>();
+                /*Excel解析原生的数据 目前用不上*/
+                HashMap<String, Object> hashDataMap = new LinkedHashMap<>();
                 for (int colIndex = 0; colIndex < rowList.size(); colIndex++) {
-                    rowData.put(getReaderContext().colIndex2Title.get(colIndex), StringConverter.parse(rowList.get(colIndex)));
+                    hashDataMap.put(getReaderContext().colIndex2Title.get(colIndex), StringConverter.parse(rowList.get(colIndex)));
                 }
-                titleReaderResult.rowIndex2rawData.put((int) rowIndex, rowData);
                 /*转换成业务对象*/
                 R currentObject = null;
                 try {
                     /*转换*/
-                    currentObject = rowConvert(rowData);
+                    currentObject = rowConvert(hashDataMap);
                     if (currentObject == null) {
                         return;
                     }
@@ -295,16 +294,17 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                         convertPostProcessor.accept(currentObject);
                     }
                     titleReaderResult.rowIndex2msg.put((int) rowIndex, CONVERT_SUCCESS_MSG);
-                    rowData.put(RESULT_TITLE, CONVERT_SUCCESS_MSG);
+                    hashDataMap.put(RESULT_TITLE, CONVERT_SUCCESS_MSG);
+
                     /*消费*/
                     titleReaderResult.rowIndex2dataBiMap.put((int) rowIndex, currentObject);
                 } catch (Exception e) {
                     titleReaderResult.errorCount.incrementAndGet();
                     /*写入导出Excel结果*/
                     titleReaderResult.rowIndex2msg.put((int) rowIndex, GlobalExceptionMsgManager.getExceptionMsg(e));
-                    rowData.put(RESULT_TITLE, GlobalExceptionMsgManager.getExceptionMsg(e));
+                    hashDataMap.put(RESULT_TITLE, GlobalExceptionMsgManager.getExceptionMsg(e));
                 }
-                if (currentObject == null && rowData != null) {
+                if (currentObject == null && hashDataMap != null) {
                     //假如存在任一数据convert阶段就失败的单, 将打一个标记
                     titleReaderResult.EXISTS_CONVERT_FAIL.set(true);
                 }

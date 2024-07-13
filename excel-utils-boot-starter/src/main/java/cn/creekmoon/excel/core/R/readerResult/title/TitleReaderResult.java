@@ -12,7 +12,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -36,11 +35,6 @@ public class TitleReaderResult<R> implements ReaderResult {
 
     /*行结果集合*/
     public LinkedHashMap<Integer, String> rowIndex2msg = new LinkedHashMap<>();
-
-
-    /*原始行对象集合*/
-    public LinkedHashMap<Integer, Map<String, Object>> rowIndex2rawData = new LinkedHashMap<>();
-
 
     public List<R> getAll() {
         if (EXISTS_CONVERT_FAIL.get()) {
