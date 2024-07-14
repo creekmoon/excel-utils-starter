@@ -145,8 +145,10 @@ public class ExampleController {
 
         ExcelImport excelImport = ExcelImport.create(file);
         ReaderResult<Student> readerResult = excelImport.switchSheetAndUseCellReader(1, Student::new)
-                .addConvertAndMustExist("A7", Student::setUserName)
-                .read(x -> log.info(x.toString()));
+                .addConvertAndMustExist("A1", Student::setUserName)
+                .read(x -> {
+                    log.info(x.toString());
+                });
 
         System.out.println("readerResult.getErrorReport() = " + readerResult.getErrorReport());
         excelImport.response(response);

@@ -119,19 +119,38 @@ public class HutoolCellReader<R> implements CellReader<R> {
 
     @Override
     public ReaderResult<R> read(ExConsumer<R> consumer) throws Exception {
-        return getReadResult().consume(consumer);
+        return read().consume(consumer);
     }
 
 
     @Override
     public ReaderResult<R> read() throws InterruptedException, IOException {
+
         //新版读取 使用SAX读取模式
         ExcelUtilsConfig.importParallelSemaphore.acquire();
         ((CellReaderResult) getReadResult()).readStartTime = LocalDateTime.now();
         try {
-            Excel07SaxReader excel07SaxReader = initSaxReader();
+            /*模版一致性检查:  获取声明的所有CELL, 接下来如果读取到cell就会移除, 当所有cell命中时说明单元格是一致的.*/
+            Set<String> templateConsistencyCheckCells = new HashSet<>();
+            if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
+                getReaderContext().cell2setter.forEach((rowIndex, colIndexMap) -> {
+                    colIndexMap.forEach((colIndex, var) -> {
+                        templateConsistencyCheckCells.add(ExcelCellUtils.excelIndexToCell(rowIndex, colIndex));
+                    });
+                });
+            }
+
+            Excel07SaxReader excel07SaxReader = initSaxReader(templateConsistencyCheckCells);
             /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
             excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
+
+            /*模版一致性检查失败*/
+            if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK && !templateConsistencyCheckCells.isEmpty()) {
+                getReadResult().EXISTS_READ_FAIL.set(true);
+                getReadResult().errorCount.incrementAndGet();
+                getReadResult().getErrorReport().append(StrFormatter.format(TITLE_CHECK_ERROR));
+            }
+
         } catch (Exception e) {
             log.error("SaxReader读取Excel文件异常", e);
         } finally {
@@ -157,37 +176,17 @@ public class HutoolCellReader<R> implements CellReader<R> {
      * 初始化SAX读取器
      *
      * @param
+     * @param templateConsistencyCheckCells
      * @retur
      */
-    Excel07SaxReader initSaxReader() {
+    Excel07SaxReader initSaxReader(Set<String> templateConsistencyCheckCells) {
         Integer targetSheetIndex = getReaderContext().sheetIndex;
         getReaderContext().currentNewObject = getReaderContext().newObjectSupplier.get();
 
 
-        /*模版一致性检查:  获取声明的所有CELL, 接下来如果读取到cell就会移除, 当所有cell命中时说明单元格是一致的.*/
-        Set<String> missingCells = new HashSet<>();
-        if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
-            getReaderContext().cell2setter.forEach((rowIndex, colIndexMap) -> {
-                colIndexMap.forEach((colIndex, var) -> {
-                    missingCells.add(ExcelCellUtils.excelIndexToCell(rowIndex, colIndex));
-                });
-            });
-        }
-
         /*返回一个Sax读取器*/
         return new Excel07SaxReader(new RowHandler() {
             int currentSheetIndex = 0;
-
-            @Override
-            public void doAfterAllAnalysed() {
-
-                /*模版一致性检查失败*/
-                if (!missingCells.isEmpty()) {
-                    getReadResult().EXISTS_READ_FAIL.set(true);
-                    getReadResult().errorCount.incrementAndGet();
-                    getReadResult().getErrorReport().append(StrFormatter.format(TITLE_CHECK_ERROR));
-                }
-            }
 
 
             @Override
@@ -213,7 +212,7 @@ public class HutoolCellReader<R> implements CellReader<R> {
                     return;
                 }
                 /*标题一致性检查*/
-                missingCells.remove(ExcelCellUtils.excelIndexToCell(sheetIndex, colIndex));
+                templateConsistencyCheckCells.remove(ExcelCellUtils.excelIndexToCell((int) rowIndex, colIndex));
 
                 try {
                     ExFunction cellConverter = getReaderContext().cell2converts.get((int) rowIndex).get(colIndex);
@@ -232,6 +231,7 @@ public class HutoolCellReader<R> implements CellReader<R> {
                     }
                     Object apply = cellConverter.apply(cellValue);
                     cellConsumer.accept(getReaderContext().currentNewObject, apply);
+                    getReadResult().setData((R) getReaderContext().currentNewObject);
                 } catch (Exception e) {
                     getReadResult().EXISTS_READ_FAIL.set(true);
                     getReadResult().errorCount.incrementAndGet();

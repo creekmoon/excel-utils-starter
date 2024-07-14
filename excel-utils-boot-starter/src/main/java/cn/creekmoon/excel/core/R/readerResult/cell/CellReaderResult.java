@@ -17,7 +17,7 @@ public class CellReaderResult<R> implements ReaderResult<R> {
     public AtomicInteger errorCount = new AtomicInteger(0);
     public StringBuilder errorReport = new StringBuilder();
 
-    public R data = null;
+    private R data = null;
 
     @Override
     public StringBuilder getErrorReport() {
@@ -46,10 +46,10 @@ public class CellReaderResult<R> implements ReaderResult<R> {
 
     @Override
     public ReaderResult<R> consume(ExConsumer<R> consumer) throws Exception {
-        if (data == null) {
+        if (getData() == null) {
             return this;
         }
-        consumer.accept(data);
+        consumer.accept(getData());
         consumeSuccessTime = LocalDateTime.now();
         return this;
     }
@@ -62,4 +62,8 @@ public class CellReaderResult<R> implements ReaderResult<R> {
         return data;
     }
 
+
+    public void setData(R data) {
+        this.data = data;
+    }
 }
