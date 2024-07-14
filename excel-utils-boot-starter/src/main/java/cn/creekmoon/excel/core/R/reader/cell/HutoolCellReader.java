@@ -1,5 +1,6 @@
 package cn.creekmoon.excel.core.R.reader.cell;
 
+import cn.creekmoon.excel.core.ExcelUtilsConfig;
 import cn.creekmoon.excel.core.R.ExcelImport;
 import cn.creekmoon.excel.core.R.converter.StringConverter;
 import cn.creekmoon.excel.core.R.reader.ReaderContext;
@@ -19,13 +20,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellStyle;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
-import static cn.creekmoon.excel.util.ExcelConstants.CONVERT_FAIL_MSG;
-import static cn.creekmoon.excel.util.ExcelConstants.FIELD_LACK_MSG;
+import static cn.creekmoon.excel.util.ExcelConstants.*;
 
 @Slf4j
 public class HutoolCellReader<R> implements CellReader<R> {
@@ -64,8 +66,8 @@ public class HutoolCellReader<R> implements CellReader<R> {
     public <T> HutoolCellReader<R> addConvert(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
         getReaderContext().cell2converts.computeIfAbsent(rowIndex, HashMap::new);
         getReaderContext().cell2converts.get(rowIndex).put(colIndex, convert);
-        getReaderContext().cell2consumers.computeIfAbsent(rowIndex, HashMap::new);
-        getReaderContext().cell2consumers.get(rowIndex).put(colIndex, setter);
+        getReaderContext().cell2setter.computeIfAbsent(rowIndex, HashMap::new);
+        getReaderContext().cell2setter.get(rowIndex).put(colIndex, setter);
         return this;
     }
 
@@ -115,31 +117,30 @@ public class HutoolCellReader<R> implements CellReader<R> {
         return addConvertAndMustExist(ExcelCellUtils.excelCellToRowIndex(cellReference), ExcelCellUtils.excelCellToColumnIndex(cellReference), setter);
     }
 
-
-    /**
-     * 添加校验阶段后置处理器 当所有的convert执行完成后会执行这个操作做最后的校验处理
-     *
-     * @param postProcessor 后置处理器
-     * @param <T>
-     * @return
-     */
     @Override
-    public <T> HutoolCellReader<R> addConvertPostProcessor(ExConsumer<R> postProcessor) {
-        if (postProcessor != null) {
-            this.getReaderContext().cellConvertPostProcessors.add(postProcessor);
-        }
-        return this;
+    public ReaderResult<R> read(ExConsumer<R> consumer) throws Exception {
+        return getReadResult().consume(consumer);
     }
 
+
     @Override
-    public ReaderResult read(ExConsumer<R> consumer) throws IOException {
+    public ReaderResult<R> read() throws InterruptedException, IOException {
         //新版读取 使用SAX读取模式
-        Excel07SaxReader excel07SaxReader = initSaxReader(consumer);
-        /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
-        excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
+        ExcelUtilsConfig.importParallelSemaphore.acquire();
+        ((CellReaderResult) getReadResult()).readStartTime = LocalDateTime.now();
+        try {
+            Excel07SaxReader excel07SaxReader = initSaxReader();
+            /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
+            excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
+        } catch (Exception e) {
+            log.error("SaxReader读取Excel文件异常", e);
+        } finally {
+            getReadResult().readSuccessTime = LocalDateTime.now();
+            /*释放信号量*/
+            ExcelUtilsConfig.importParallelSemaphore.release();
+        }
         return getReadResult();
     }
-
 
     @Override
     public ExcelImport getExcelImport() {
@@ -155,13 +156,23 @@ public class HutoolCellReader<R> implements CellReader<R> {
     /**
      * 初始化SAX读取器
      *
-     * 
-     * @param consumer
+     * @param
      * @retur
      */
-    Excel07SaxReader initSaxReader(ExConsumer<R> consumer) {
+    Excel07SaxReader initSaxReader() {
         Integer targetSheetIndex = getReaderContext().sheetIndex;
         getReaderContext().currentNewObject = getReaderContext().newObjectSupplier.get();
+
+
+        /*模版一致性检查:  获取声明的所有CELL, 接下来如果读取到cell就会移除, 当所有cell命中时说明单元格是一致的.*/
+        Set<String> missingCells = new HashSet<>();
+        if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
+            getReaderContext().cell2setter.forEach((rowIndex, colIndexMap) -> {
+                colIndexMap.forEach((colIndex, var) -> {
+                    missingCells.add(ExcelCellUtils.excelIndexToCell(rowIndex, colIndex));
+                });
+            });
+        }
 
         /*返回一个Sax读取器*/
         return new Excel07SaxReader(new RowHandler() {
@@ -170,28 +181,11 @@ public class HutoolCellReader<R> implements CellReader<R> {
             @Override
             public void doAfterAllAnalysed() {
 
-                if (targetSheetIndex != currentSheetIndex) {
-                    return;
-                }
-
-                /*sheet读取结束时*/
-                for (ExConsumer convertPostProcessor : getReaderContext().cellConvertPostProcessors) {
-                    if (getReaderContext().errorReport.length() > 0) {
-                        throw new RuntimeException("导入失败!");
-                    }
-                    try {
-                        convertPostProcessor.accept(getReaderContext().currentNewObject);
-                    } catch (Exception e) {
-                        getReadResult().errorCount.incrementAndGet();
-                        getReaderContext().errorReport.append(GlobalExceptionMsgManager.getExceptionMsg(e));
-                    }
-                }
-
-                try {
-                    consumer.accept((R) getReaderContext().currentNewObject);
-                } catch (Exception e) {
+                /*模版一致性检查失败*/
+                if (!missingCells.isEmpty()) {
+                    getReadResult().EXISTS_READ_FAIL.set(true);
                     getReadResult().errorCount.incrementAndGet();
-                    getReaderContext().errorReport.append(GlobalExceptionMsgManager.getExceptionMsg(e));
+                    getReadResult().getErrorReport().append(StrFormatter.format(TITLE_CHECK_ERROR));
                 }
             }
 
@@ -212,16 +206,18 @@ public class HutoolCellReader<R> implements CellReader<R> {
                 }
 
                 /*解析单个单元格*/
-                if (getReaderContext().cell2consumers.size() <= 0
-                        || !getReaderContext().cell2consumers.containsKey((int) rowIndex)
-                        || !getReaderContext().cell2consumers.get((int) rowIndex).containsKey(colIndex)
+                if (getReaderContext().cell2setter.size() <= 0
+                        || !getReaderContext().cell2setter.containsKey((int) rowIndex)
+                        || !getReaderContext().cell2setter.get((int) rowIndex).containsKey(colIndex)
                 ) {
                     return;
                 }
+                /*标题一致性检查*/
+                missingCells.remove(ExcelCellUtils.excelIndexToCell(sheetIndex, colIndex));
 
                 try {
                     ExFunction cellConverter = getReaderContext().cell2converts.get((int) rowIndex).get(colIndex);
-                    BiConsumer cellConsumer = getReaderContext().cell2consumers.get((int) rowIndex).get(colIndex);
+                    BiConsumer cellConsumer = getReaderContext().cell2setter.get((int) rowIndex).get(colIndex);
                     String cellValue = StringConverter.parse(value);
                     /*检查必填项/检查可填项*/
                     if (StrUtil.isBlank(cellValue)) {
@@ -237,8 +233,9 @@ public class HutoolCellReader<R> implements CellReader<R> {
                     Object apply = cellConverter.apply(cellValue);
                     cellConsumer.accept(getReaderContext().currentNewObject, apply);
                 } catch (Exception e) {
+                    getReadResult().EXISTS_READ_FAIL.set(true);
                     getReadResult().errorCount.incrementAndGet();
-                    getReaderContext().errorReport.append(StrFormatter.format(CONVERT_FAIL_MSG, ExcelCellUtils.excelIndexToCell((int) rowIndex, colIndex)))
+                    getReadResult().getErrorReport().append(StrFormatter.format(CONVERT_FAIL_MSG, ExcelCellUtils.excelIndexToCell((int) rowIndex, colIndex)))
                             .append(GlobalExceptionMsgManager.getExceptionMsg(e))
                             .append(";");
                 }

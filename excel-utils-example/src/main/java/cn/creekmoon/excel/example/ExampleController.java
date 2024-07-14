@@ -4,12 +4,9 @@ import cn.creekmoon.excel.core.R.ExcelImport;
 import cn.creekmoon.excel.core.R.converter.DateConverter;
 import cn.creekmoon.excel.core.R.converter.IntegerConverter;
 import cn.creekmoon.excel.core.R.converter.LocalDateTimeConverter;
-import cn.creekmoon.excel.core.R.reader.cell.CellReader;
-import cn.creekmoon.excel.core.R.reader.title.TitleReader;
+import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.core.W.ExcelExport;
-import cn.creekmoon.excel.example.config.exception.MyNewException;
-import cn.creekmoon.excel.util.exception.CheckedExcelException;
 import cn.hutool.core.util.RandomUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,7 +29,6 @@ import java.util.Date;
 @RestController
 @Slf4j
 public class ExampleController {
-
 
 
     @GetMapping(value = "/exportExcel")
@@ -109,45 +105,30 @@ public class ExampleController {
      */
     @PostMapping(value = "/importExcel")
     @Operation(summary = "导入数据")
-    public void importExcelBySax(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws IOException, CheckedExcelException {
-        //判断这个方法的执行时间
-        long start = System.currentTimeMillis();
-        ExcelImport excelImport1 = ExcelImport.create(file);
-        TitleReaderResult readerResult = excelImport1
-                .switchSheet(0, Student::new)
+    public void importExcelBySax(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        /*读取导入文件*/
+        ExcelImport excelImport = ExcelImport.create(file);
+        TitleReaderResult<Student> sheet1 = excelImport.switchSheet(0, Student::new)
                 .addConvert("用户名", Student::setUserName)
                 .addConvert("全名", Student::setFullName)
                 .addConvert("年龄", IntegerConverter::parse, Student::setAge)
                 .addConvert("邮箱", Student::setEmail)
                 .addConvert("生日", DateConverter::parse, Student::setBirthday)
                 .addConvert("过期时间", LocalDateTimeConverter::parse, Student::setExpTime)
-                .read(student -> {
-                    if (student.age == 76) {
-                        System.out.println("[年龄==76标记为错误]" + student);
-                        throw new MyNewException("年龄==76");
-                    }
-                    System.out.println("[正常读取到对象]" + student);
-                });
-        excelImport1.response(response);
-        System.out.println("错误次数:" + readerResult.getErrorCount());
-        //判断这个方法的执行时间
-        long end = System.currentTimeMillis();
-        System.out.println("执行时间:" + (end - start));
+                .read(x -> log.info(x.toString()));
 
-        CellReader<Student> studentCellReader = ExcelImport
-                .create(file)
-                .switchSheetAndUseCellReader(0, Student::new);
-        studentCellReader.addConvert("A1", Student::setUserName)
-                .addConvert("B1", Student::setFullName)
-                .addConvert("A2", x -> {
-                    return x;
-                }, Student::setEmail)
-                .read(student -> {
-                    if (System.currentTimeMillis() % 2 >= 0) {
-                        throw new MyNewException("消费失败");
+        TitleReaderResult<Student> sheet2 = excelImport.switchSheet(1, Student::new)
+                .addConvert("生日", DateConverter::parse, Student::setBirthday)
+                .addConvert("邮箱", Student::setEmail)
+                .read(x -> {
+                    if ("lisi@qq.com".equals(x.getEmail())) {
+                        Thread.sleep(2000);
+                        throw new RuntimeException("错误!");
                     }
-                    System.out.println("CELL读取到的对象:" + student);
+                    log.info(x.toString());
                 });
+
+        excelImport.response(response);
     }
 
 
@@ -160,31 +141,16 @@ public class ExampleController {
      */
     @PostMapping(value = "/importExcelByCell")
     @Operation(summary = "导入数据(读取指定单元格)")
-    public void importExcelByCell(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws IOException, InterruptedException {
+    public void importExcelByCell(MultipartFile file, HttpServletRequest request, HttpServletResponse response) throws Exception {
 
         ExcelImport excelImport = ExcelImport.create(file);
-        TitleReader<Student> studentSheetReader = excelImport
-                .switchSheet(0, Student::new)
-                //从第二行开始,正常读取列
-                .range(1)
-                .addConvert("用户名", Student::setUserName)
-                .addConvert("全名", Student::setFullName)
-                .addConvert("年龄", IntegerConverter::parse, Student::setAge)
-                .addConvert("邮箱", Student::setEmail)
-                .addConvert("生日", DateConverter::parse, Student::setBirthday)
-                .addConvert("过期时间", LocalDateTimeConverter::parse, Student::setExpTime);
+        ReaderResult<Student> readerResult = excelImport.switchSheetAndUseCellReader(1, Student::new)
+                .addConvertAndMustExist("A7", Student::setUserName)
+                .read(x -> log.info(x.toString()));
 
-
-        TitleReaderResult<Student> readerResult = studentSheetReader.read();
-
-        long count = readerResult
-                .getAll()
-                .stream()
-                .peek(student -> readerResult.setResultMsg(student, "读取完毕"))
-                .count();
-
-        System.out.println("读取到students数量:" + count);
+        System.out.println("readerResult.getErrorReport() = " + readerResult.getErrorReport());
         excelImport.response(response);
+
     }
 
 

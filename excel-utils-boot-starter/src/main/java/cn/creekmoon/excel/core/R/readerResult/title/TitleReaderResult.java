@@ -6,9 +6,11 @@ import cn.creekmoon.excel.util.exception.ExBiConsumer;
 import cn.creekmoon.excel.util.exception.ExConsumer;
 import cn.creekmoon.excel.util.exception.GlobalExceptionMsgManager;
 import cn.hutool.core.map.BiMap;
+import cn.hutool.core.text.StrFormatter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,15 +22,18 @@ import java.util.concurrent.atomic.AtomicReference;
  * 读取结果
  */
 @Slf4j
-public class TitleReaderResult<R> implements ReaderResult {
+public class TitleReaderResult<R> implements ReaderResult<R> {
 
-    //读取的整体时间
-    public int durationSecond;
+    public LocalDateTime readStartTime;
+    public LocalDateTime readSuccessTime;
+    public LocalDateTime consumeSuccessTime;
 
     /*错误次数统计*/
     public AtomicInteger errorCount = new AtomicInteger(0);
+    public StringBuilder errorReport = new StringBuilder();
 
-    public AtomicReference<Boolean> EXISTS_CONVERT_FAIL = new AtomicReference<>(false);
+    /*存在读取失败的数据*/
+    public AtomicReference<Boolean> EXISTS_READ_FAIL = new AtomicReference<>(false);
 
     /*K=行下标 V=数据*/
     public BiMap<Integer, R> rowIndex2dataBiMap = new BiMap<>(new LinkedHashMap<>());
@@ -37,7 +42,7 @@ public class TitleReaderResult<R> implements ReaderResult {
     public LinkedHashMap<Integer, String> rowIndex2msg = new LinkedHashMap<>();
 
     public List<R> getAll() {
-        if (EXISTS_CONVERT_FAIL.get()) {
+        if (EXISTS_READ_FAIL.get()) {
             // 如果转化阶段就存在失败数据, 意味着数据不完整,应该返回空
             return new ArrayList<>();
         }
@@ -56,7 +61,9 @@ public class TitleReaderResult<R> implements ReaderResult {
                 rowIndex2msg.put(rowIndex, ExcelConstants.IMPORT_SUCCESS_MSG);
             } catch (Exception e) {
                 errorCount.incrementAndGet();
-                rowIndex2msg.put(rowIndex, GlobalExceptionMsgManager.getExceptionMsg(e));
+                String exceptionMsg = GlobalExceptionMsgManager.getExceptionMsg(e);
+                getErrorReport().append(StrFormatter.format("第[{}]行发生错误[{}]", (int) rowIndex + 1, exceptionMsg));
+                rowIndex2msg.put(rowIndex, exceptionMsg);
             }
         });
         return this;
@@ -103,14 +110,30 @@ public class TitleReaderResult<R> implements ReaderResult {
     }
 
 
-    public Integer getErrorCount() {
-        return errorCount.get();
+    @Override
+    public StringBuilder getErrorReport() {
+        return errorReport;
+    }
+
+    public AtomicInteger getErrorCount() {
+        return errorCount;
     }
 
     @Override
-    public Integer getDurationSecond() {
-        return durationSecond;
+    public LocalDateTime getReadStartTime() {
+        return readStartTime;
     }
+
+    @Override
+    public LocalDateTime getReadSuccessTime() {
+        return readSuccessTime;
+    }
+
+    @Override
+    public LocalDateTime getConsumeSuccessTime() {
+        return consumeSuccessTime;
+    }
+
 
     public Integer getDataLatestRowIndex() {
         return this.rowIndex2msg.keySet().stream().max(Integer::compareTo).get();

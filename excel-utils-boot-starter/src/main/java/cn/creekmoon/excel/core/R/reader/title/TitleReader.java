@@ -36,9 +36,9 @@ public interface TitleReader<R> extends Reader<R> {
 
     <T> TitleReader<R> addConvertPostProcessor(ExConsumer<R> postProcessor);
 
-    TitleReaderResult read(ExConsumer<R> dataConsumer);
+    TitleReaderResult<R> read(ExConsumer<R> dataConsumer);
 
-    TitleReaderResult<R> read() throws InterruptedException;
+    TitleReaderResult<R> read();
 
     TitleReader<R> range(int titleRowIndex, int firstDataRowIndex, int lastDataRowIndex);
 

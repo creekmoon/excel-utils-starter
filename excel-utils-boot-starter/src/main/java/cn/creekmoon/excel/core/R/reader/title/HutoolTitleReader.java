@@ -4,7 +4,6 @@ import cn.creekmoon.excel.core.ExcelUtilsConfig;
 import cn.creekmoon.excel.core.R.ExcelImport;
 import cn.creekmoon.excel.core.R.converter.StringConverter;
 import cn.creekmoon.excel.core.R.reader.ReaderContext;
-import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.util.ExcelConstants;
 import cn.creekmoon.excel.util.exception.CheckedExcelException;
@@ -19,7 +18,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -110,9 +108,10 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
 
 
     @Override
-    public TitleReaderResult read(ExConsumer<R> dataConsumer) {
-        return read().consume(dataConsumer);
-
+    public TitleReaderResult<R> read(ExConsumer<R> dataConsumer) {
+        TitleReaderResult<R> result = read().consume(dataConsumer);
+        ((TitleReaderResult) getReadResult()).consumeSuccessTime = LocalDateTime.now();
+        return result;
     }
 
     @SneakyThrows
@@ -120,7 +119,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
     public TitleReaderResult<R> read() {
         /*尝试拿锁*/
         ExcelUtilsConfig.importParallelSemaphore.acquire();
-        LocalDateTime start = LocalDateTime.now();
+        ((TitleReaderResult) getReadResult()).readStartTime = LocalDateTime.now();
         try {
             //新版读取 使用SAX读取模式
             Excel07SaxReader excel07SaxReader = initSaxReader();
@@ -129,7 +128,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
         } catch (Exception e) {
             log.error("SaxReader读取Excel文件异常", e);
         } finally {
-            ((TitleReaderResult) getReadResult()).durationSecond = Math.toIntExact(ChronoUnit.SECONDS.between(start, LocalDateTime.now()));
+            ((TitleReaderResult) getReadResult()).readSuccessTime = LocalDateTime.now();
             /*释放信号量*/
             ExcelUtilsConfig.importParallelSemaphore.release();
         }
@@ -181,15 +180,15 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      * @param row 实际上是Map<String, String>对象
      * @throws Exception
      */
-    private R rowConvert(Map<String, Object> row) throws Exception {
+    private R rowConvert(Map<String, String> row) throws Exception {
         /*进行模板一致性检查*/
-        if (getReaderContext().ENABLE_TITLE_CHECK) {
-            if (getReaderContext().TITLE_CHECK_FAIL_FLAG || !titleConsistencyCheck(getReaderContext().title2converts.keySet(), row.keySet())) {
-                getReaderContext().TITLE_CHECK_FAIL_FLAG = true;
+        if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
+            if (getReaderContext().TEMPLATE_CONSISTENCY_CHECK_FAILED || !templateConsistencyCheck(getReaderContext().title2converts.keySet(), row.keySet())) {
+                getReaderContext().TEMPLATE_CONSISTENCY_CHECK_FAILED = true;
                 throw new CheckedExcelException(TITLE_CHECK_ERROR);
             }
         }
-        getReaderContext().ENABLE_TITLE_CHECK = false;
+        getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
 
         /*过滤空白行*/
         if (getReaderContext().ENABLE_BLANK_ROW_FILTER
@@ -203,7 +202,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
         /*最大转换次数*/
         int maxConvertCount = this.getReaderContext().title2consumers.keySet().size();
         /*执行convert*/
-        for (Map.Entry<String, Object> entry : row.entrySet()) {
+        for (Map.Entry<String, String> entry : row.entrySet()) {
             /*如果包含不支持的标题,  或者已经超过最大次数则不再进行读取*/
             if (!this.getReaderContext().title2consumers.containsKey(entry.getKey()) || maxConvertCount-- <= 0) {
                 continue;
@@ -276,8 +275,8 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                     return;
                 }
 
-                /*Excel解析原生的数据 目前用不上*/
-                HashMap<String, Object> hashDataMap = new LinkedHashMap<>();
+                /*Excel解析原生的数据. 目前只用于内部数据转换*/
+                HashMap<String, String> hashDataMap = new LinkedHashMap<>();
                 for (int colIndex = 0; colIndex < rowList.size(); colIndex++) {
                     hashDataMap.put(getReaderContext().colIndex2Title.get(colIndex), StringConverter.parse(rowList.get(colIndex)));
                 }
@@ -294,19 +293,17 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                         convertPostProcessor.accept(currentObject);
                     }
                     titleReaderResult.rowIndex2msg.put((int) rowIndex, CONVERT_SUCCESS_MSG);
-                    hashDataMap.put(RESULT_TITLE, CONVERT_SUCCESS_MSG);
-
                     /*消费*/
                     titleReaderResult.rowIndex2dataBiMap.put((int) rowIndex, currentObject);
                 } catch (Exception e) {
+                    //假如存在任一数据convert阶段就失败的单, 将打一个标记
+                    titleReaderResult.EXISTS_READ_FAIL.set(true);
                     titleReaderResult.errorCount.incrementAndGet();
                     /*写入导出Excel结果*/
-                    titleReaderResult.rowIndex2msg.put((int) rowIndex, GlobalExceptionMsgManager.getExceptionMsg(e));
-                    hashDataMap.put(RESULT_TITLE, GlobalExceptionMsgManager.getExceptionMsg(e));
-                }
-                if (currentObject == null && hashDataMap != null) {
-                    //假如存在任一数据convert阶段就失败的单, 将打一个标记
-                    titleReaderResult.EXISTS_CONVERT_FAIL.set(true);
+                    String exceptionMsg = GlobalExceptionMsgManager.getExceptionMsg(e);
+                    getReadResult().getErrorReport().append(StrFormatter.format("第[{}]行发生错误[{}]", (int) rowIndex + 1, exceptionMsg));
+                    titleReaderResult.rowIndex2msg.put((int) rowIndex, exceptionMsg);
+
                 }
             }
         });
@@ -314,13 +311,13 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
 
 
     /**
-     * 标题一致性检查
+     * 模版一致性检查
      *
      * @param targetTitles 我们声明的要拿取的标题
      * @param sourceTitles 传过来的excel文件标题
      * @return
      */
-    private Boolean titleConsistencyCheck(Set<String> targetTitles, Set<String> sourceTitles) {
+    private Boolean templateConsistencyCheck(Set<String> targetTitles, Set<String> sourceTitles) {
         if (targetTitles.size() > sourceTitles.size()) {
             return false;
         }
@@ -328,12 +325,12 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
     }
 
     /**
-     * 禁用标题一致性检查
+     * 禁用模版一致性检查
      *
      * @return
      */
-    public HutoolTitleReader<R> disableTitleConsistencyCheck() {
-        this.getReaderContext().ENABLE_TITLE_CHECK = false;
+    public HutoolTitleReader<R> disableTemplateConsistencyCheck() {
+        this.getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
         return this;
     }
 
@@ -359,8 +356,8 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
     }
 
     @Override
-    public ReaderResult<R> getReadResult() {
-        return getExcelImport().sheetIndex2ReadResult.get(getSheetIndex());
+    public TitleReaderResult<R> getReadResult() {
+        return (TitleReaderResult) getExcelImport().sheetIndex2ReadResult.get(getSheetIndex());
     }
 
     @Override
