@@ -33,7 +33,7 @@ public class TitleReaderResult<R> implements ReaderResult<R> {
     public StringBuilder errorReport = new StringBuilder();
 
     /*存在读取失败的数据*/
-    public AtomicReference<Boolean> EXISTS_READ_FAIL = new AtomicReference<>(false);
+    public AtomicReference<Boolean> existsReadFail = new AtomicReference<>(false);
 
     /*K=行下标 V=数据*/
     public BiMap<Integer, R> rowIndex2dataBiMap = new BiMap<>(new LinkedHashMap<>());
@@ -42,7 +42,7 @@ public class TitleReaderResult<R> implements ReaderResult<R> {
     public LinkedHashMap<Integer, String> rowIndex2msg = new LinkedHashMap<>();
 
     public List<R> getAll() {
-        if (EXISTS_READ_FAIL.get()) {
+        if (existsReadFail.get()) {
             // 如果转化阶段就存在失败数据, 意味着数据不完整,应该返回空
             return new ArrayList<>();
         }

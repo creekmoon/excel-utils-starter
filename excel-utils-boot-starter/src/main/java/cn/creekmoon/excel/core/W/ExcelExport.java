@@ -26,6 +26,8 @@ public class ExcelExport {
     public boolean debugger = false;
     /*唯一识别名称*/
     public String taskId = UUID.fastUUID().toString();
+    /*生成的临时文件路径*/
+    public String filePath = ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId);
     /*自定义的名称*/
     public String excelName;
     /*写入器*/
@@ -120,7 +122,7 @@ public class ExcelExport {
      */
     public void response(HttpServletResponse response) throws IOException {
         String taskId = this.stopWrite();
-        ExcelFileUtils.response(ExcelFileUtils.getAbsoluteFilePath(taskId), excelName, response);
+        ExcelFileUtils.response(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId), excelName, response);
     }
 
 
@@ -131,7 +133,7 @@ public class ExcelExport {
      */
     public BigExcelWriter getBigExcelWriter() {
         if (bigExcelWriter == null) {
-            bigExcelWriter = ExcelUtil.getBigWriter(ExcelFileUtils.getAbsoluteFilePath(taskId));
+            bigExcelWriter = ExcelUtil.getBigWriter(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId));
         }
         return bigExcelWriter;
     }

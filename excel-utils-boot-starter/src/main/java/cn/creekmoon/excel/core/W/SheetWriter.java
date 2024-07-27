@@ -140,8 +140,7 @@ public class SheetWriter<R> {
                                                 }
                                             }
                                             if (writeStrategy == ExcelExport.WriteStrategy.STOP_ON_ERROR) {
-                                                String taskId = parent.stopWrite();
-                                                ExcelFileUtils.cleanTempFileDelay(taskId,10);
+                                                ExcelFileUtils.cleanTempFileByPathDelay(parent.filePath, 10);
                                                 log.error("[Excel构建]生成Excel获取数据值时发生错误!", exception);
                                                 throw new RuntimeException("生成Excel获取数据值时发生错误!");
                                             }
@@ -430,7 +429,7 @@ public class SheetWriter<R> {
      */
     public void response(HttpServletResponse response) throws IOException {
         String taskId = parent.stopWrite();
-        ExcelFileUtils.response(ExcelFileUtils.getAbsoluteFilePath(taskId), parent.excelName, response);
+        ExcelFileUtils.response(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId), parent.excelName, response);
     }
 
     /*条件样式*/

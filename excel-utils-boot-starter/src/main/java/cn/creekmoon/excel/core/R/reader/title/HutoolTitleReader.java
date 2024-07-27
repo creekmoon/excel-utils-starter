@@ -297,7 +297,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                     titleReaderResult.rowIndex2dataBiMap.put((int) rowIndex, currentObject);
                 } catch (Exception e) {
                     //假如存在任一数据convert阶段就失败的单, 将打一个标记
-                    titleReaderResult.EXISTS_READ_FAIL.set(true);
+                    titleReaderResult.existsReadFail.set(true);
                     titleReaderResult.errorCount.incrementAndGet();
                     /*写入导出Excel结果*/
                     String exceptionMsg = GlobalExceptionMsgManager.getExceptionMsg(e);

@@ -6,12 +6,10 @@ import cn.creekmoon.excel.core.R.converter.IntegerConverter;
 import cn.creekmoon.excel.core.R.converter.LocalDateTimeConverter;
 import cn.creekmoon.excel.core.R.reader.title.TitleReader;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
-import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.util.ExcelConstants;
 import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
-import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Assertions;
@@ -27,6 +25,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
+import java.io.File;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.HashMap;
@@ -130,12 +129,10 @@ class ExcelImportTest {
         }
 
         //检查临时文件是否能够正常生成和清理
-        ExcelExport excelExport = (ExcelExport) ReflectUtil.getFieldValue(read, "excelExport");
-        Assertions.assertFalse(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
-        excelImport.generateResultFile();
-        Assertions.assertTrue(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
-        ExcelFileUtils.cleanTempFileNow(excelExport.taskId);
-        Assertions.assertFalse(FileUtil.exist(ExcelFileUtils.getAbsoluteFilePath(excelExport.taskId)));
+        File file = excelImport.generateResultFile();
+        Assertions.assertTrue(FileUtil.exist(file));
+        ExcelFileUtils.cleanTempFileByPathNow(file.getPath());
+        Assertions.assertFalse(FileUtil.exist(file));
 
     }
 

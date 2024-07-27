@@ -34,13 +34,13 @@ public class ExcelFileUtils {
 
 
     /**
-     * 获取文件绝对路径 默认路径在当前jar包的同级目录
+     * 生成Xlsx文件绝对路径 默认路径在当前jar包的同级目录
      *
-     * @param taskId 唯一名称,写文件完成后会获得
+     * @param uniqueId 唯一名称,写文件完成后会获得
      * @return
      */
-    public static String getAbsoluteFilePath(String taskId) {
-        return getCustomAbsoluteFilePath(taskId + ".xlsx");
+    public static String generateXlsxAbsoluteFilePath(String uniqueId) {
+        return getCustomAbsoluteFilePath(uniqueId + ".xlsx");
     }
 
     /**
@@ -100,27 +100,6 @@ public class ExcelFileUtils {
     }
 
 
-    /**
-     * 清理临时文件
-     *
-     * @param taskId
-     * @throws IOException
-     */
-    public static void cleanTempFileDelay(String taskId) {
-        cleanTempFileDelay(taskId, ExcelUtilsConfig.TEMP_FILE_LIFE_MINUTES);
-    }
-
-    /**
-     * 清理临时文件
-     *
-     * @param taskId
-     * @param fileLifeMinutes 保留时间-单位分钟
-     */
-    public static void cleanTempFileDelay(String taskId, Integer fileLifeMinutes) {
-        threadPoolExecutor.schedule(() -> {
-            cleanTempFileNow(taskId);
-        }, fileLifeMinutes != null ? fileLifeMinutes : ExcelUtilsConfig.TEMP_FILE_LIFE_MINUTES, TimeUnit.MINUTES);
-    }
 
     public static void cleanTempFileByPathDelay(String filePath) {
         cleanTempFileByPathDelay(filePath, ExcelUtilsConfig.TEMP_FILE_LIFE_MINUTES);
@@ -133,9 +112,6 @@ public class ExcelFileUtils {
     }
 
 
-    public static void cleanTempFileNow(String taskId) {
-        cleanTempFileByPathNow(ExcelFileUtils.getAbsoluteFilePath(taskId));
-    }
 
 
     public static void cleanTempFileByPathNow(String filePath) {

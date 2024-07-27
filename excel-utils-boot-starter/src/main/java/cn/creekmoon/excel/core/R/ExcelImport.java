@@ -162,8 +162,8 @@ public class ExcelImport {
         }
         log.info("[文件导入]收到CSV格式的文件[{}],尝试转化为XLSX格式", this.sourceFile.getOriginalFilename());
         /*获取CSV文件并尝试读取*/
-        String csvTaskId = UUID.fastUUID().toString(true);
-        BigExcelWriter bigWriter = ExcelUtil.getBigWriter(ExcelFileUtils.getAbsoluteFilePath(csvTaskId));
+        String filePath = ExcelFileUtils.generateXlsxAbsoluteFilePath(UUID.fastUUID().toString(true));
+        BigExcelWriter bigWriter = ExcelUtil.getBigWriter();
         try {
             CsvReader read = new CsvReader(new InputStreamReader(sourceFile.getInputStream()), null);
             Iterator<CsvRow> rowIterator = read.iterator();
@@ -175,11 +175,11 @@ public class ExcelImport {
             this.sourceFile = null;
         } finally {
             bigWriter.close();
-            ExcelFileUtils.cleanTempFileDelay(csvTaskId, 120);
+            ExcelFileUtils.cleanTempFileByPathDelay(filePath, 120);
         }
 
         /*将新的xlsx文件替换为当前的文件*/
-        this.sourceFile = new MockMultipartFile("csv2xlsx.xlsx", FileUtil.getInputStream(ExcelFileUtils.getAbsoluteFilePath(csvTaskId)));
+        this.sourceFile = new MockMultipartFile("csv2xlsx.xlsx", FileUtil.getInputStream(filePath));
         return this;
     }
 
@@ -190,7 +190,7 @@ public class ExcelImport {
 //        File file = FileUtil.file(ExcelFileUtils.getAbsoluteFilePath(this.taskId));
 //        System.out.println("file.canRead() = " + file.canRead());
 //        System.out.println("file.canWrite() = " + file.canWrite());
-        ExcelFileUtils.response(ExcelFileUtils.getAbsoluteFilePath(this.taskId), taskId + ".xlsx", response);
+        ExcelFileUtils.response(ExcelFileUtils.generateXlsxAbsoluteFilePath(this.taskId), taskId + ".xlsx", response);
         return this;
     }
 
@@ -212,7 +212,7 @@ public class ExcelImport {
      */
     public File generateResultFile(boolean autoClean) throws IOException {
 
-        String absoluteFilePath = ExcelFileUtils.getAbsoluteFilePath(taskId);
+        String absoluteFilePath = ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId);
 
         try (Workbook workbook = new XSSFWorkbook(sourceFile.getInputStream());
              BufferedOutputStream outputStream = FileUtil.getOutputStream(absoluteFilePath)) {
