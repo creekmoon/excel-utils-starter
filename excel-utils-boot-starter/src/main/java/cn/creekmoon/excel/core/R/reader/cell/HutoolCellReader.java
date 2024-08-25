@@ -3,7 +3,6 @@ package cn.creekmoon.excel.core.R.reader.cell;
 import cn.creekmoon.excel.core.ExcelUtilsConfig;
 import cn.creekmoon.excel.core.R.ExcelImport;
 import cn.creekmoon.excel.core.R.converter.StringConverter;
-import cn.creekmoon.excel.core.R.reader.ReaderContext;
 import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.cell.CellReaderResult;
 import cn.creekmoon.excel.util.ExcelCellUtils;
@@ -21,20 +20,66 @@ import org.apache.poi.ss.usermodel.CellStyle;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static cn.creekmoon.excel.util.ExcelConstants.*;
 
 @Slf4j
-public class HutoolCellReader<R> implements CellReader<R> {
+public class HutoolCellReader<R> extends CellReader<R> {
 
 
     protected ExcelImport parent;
+    /**
+     * 标题行号 这里是0,意味着第一行是标题
+     */
+    public int titleRowIndex = 0;
 
+    /**
+     * 首行数据行号
+     */
+    public int firstRowIndex = titleRowIndex + 1;
+
+    /**
+     * 末行数据行号
+     */
+    public int latestRowIndex = Integer.MAX_VALUE;
+
+    public int sheetIndex;
+    public Supplier newObjectSupplier;
+    public Object currentNewObject;
+
+
+    public HashMap<Integer, String> colIndex2Title = new HashMap<>();
+
+    /* 必填项过滤  key=rowIndex  value=<colIndex> */
+    public LinkedHashMap<Integer, Set<Integer>> mustExistCells = new LinkedHashMap<>(32);
+    /* 选填项过滤  key=rowIndex  value=<colIndex> */
+    public LinkedHashMap<Integer, Set<Integer>> skipEmptyCells = new LinkedHashMap<>(32);
+
+    /* key=rowIndex  value=<colIndex,Consumer> 单元格转换器*/
+    public LinkedHashMap<Integer, HashMap<Integer, ExFunction>> cell2converts = new LinkedHashMap(32);
+
+    /* key=rowIndex  value=<colIndex,Consumer> 单元格消费者(通常是setter方法)*/
+    public LinkedHashMap<Integer, HashMap<Integer, BiConsumer>> cell2setter = new LinkedHashMap(32);
+
+
+    /* key=title  value=执行器 */
+    public LinkedHashMap<String, ExFunction> title2converts = new LinkedHashMap(32);
+    /* key=title value=消费者(通常是setter方法)*/
+    public LinkedHashMap<String, BiConsumer> title2consumers = new LinkedHashMap(32);
+    public List<ExConsumer> convertPostProcessors = new ArrayList<>();
+    /* key=title */
+    public Set<String> mustExistTitles = new HashSet<>(32);
+    public Set<String> skipEmptyTitles = new HashSet<>(32);
+
+    /*启用空白行过滤*/
+    public boolean ENABLE_BLANK_ROW_FILTER = true;
+    /*启用模板一致性检查 为了防止模板导入错误*/
+    public boolean ENABLE_TEMPLATE_CONSISTENCY_CHECK = true;
+    /*标志位, 模板一致性检查已经失败 */
+    public boolean TEMPLATE_CONSISTENCY_CHECK_FAILED = false;
 
     public HutoolCellReader(ExcelImport parent) {
         this.parent = parent;
@@ -48,7 +93,7 @@ public class HutoolCellReader<R> implements CellReader<R> {
      */
     @SneakyThrows
     public Long getSheetRowCount() {
-        return getExcelImport().getSheetRowCount(getReaderContext().sheetIndex);
+        return getExcelImport().getSheetRowCount(sheetIndex);
     }
 
     @Override
@@ -64,10 +109,10 @@ public class HutoolCellReader<R> implements CellReader<R> {
 
     @Override
     public <T> HutoolCellReader<R> addConvert(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
-        getReaderContext().cell2converts.computeIfAbsent(rowIndex, HashMap::new);
-        getReaderContext().cell2converts.get(rowIndex).put(colIndex, convert);
-        getReaderContext().cell2setter.computeIfAbsent(rowIndex, HashMap::new);
-        getReaderContext().cell2setter.get(rowIndex).put(colIndex, setter);
+        cell2converts.computeIfAbsent(rowIndex, HashMap::new);
+        cell2converts.get(rowIndex).put(colIndex, convert);
+        cell2setter.computeIfAbsent(rowIndex, HashMap::new);
+        cell2setter.get(rowIndex).put(colIndex, setter);
         return this;
     }
 
@@ -84,8 +129,8 @@ public class HutoolCellReader<R> implements CellReader<R> {
 
     @Override
     public <T> HutoolCellReader<R> addConvertAndSkipEmpty(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
-        getReaderContext().skipEmptyCells.computeIfAbsent(rowIndex, HashSet::new);
-        getReaderContext().skipEmptyCells.get(rowIndex).add(colIndex);
+        skipEmptyCells.computeIfAbsent(rowIndex, HashSet::new);
+        skipEmptyCells.get(rowIndex).add(colIndex);
         return addConvert(rowIndex, colIndex, convert, setter);
     }
 
@@ -101,8 +146,8 @@ public class HutoolCellReader<R> implements CellReader<R> {
 
     @Override
     public <T> HutoolCellReader<R> addConvertAndMustExist(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
-        getReaderContext().mustExistCells.computeIfAbsent(rowIndex, HashSet::new);
-        getReaderContext().mustExistCells.get(rowIndex).add(colIndex);
+        mustExistCells.computeIfAbsent(rowIndex, HashSet::new);
+        mustExistCells.get(rowIndex).add(colIndex);
         return addConvert(rowIndex, colIndex, convert, setter);
     }
 
@@ -132,8 +177,8 @@ public class HutoolCellReader<R> implements CellReader<R> {
         try {
             /*模版一致性检查:  获取声明的所有CELL, 接下来如果读取到cell就会移除, 当所有cell命中时说明单元格是一致的.*/
             Set<String> templateConsistencyCheckCells = new HashSet<>();
-            if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
-                getReaderContext().cell2setter.forEach((rowIndex, colIndexMap) -> {
+            if (ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
+                cell2setter.forEach((rowIndex, colIndexMap) -> {
                     colIndexMap.forEach((colIndex, var) -> {
                         templateConsistencyCheckCells.add(ExcelCellUtils.excelIndexToCell(rowIndex, colIndex));
                     });
@@ -145,7 +190,7 @@ public class HutoolCellReader<R> implements CellReader<R> {
             excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
 
             /*模版一致性检查失败*/
-            if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK && !templateConsistencyCheckCells.isEmpty()) {
+            if (ENABLE_TEMPLATE_CONSISTENCY_CHECK && !templateConsistencyCheckCells.isEmpty()) {
                 getReadResult().EXISTS_READ_FAIL.set(true);
                 getReadResult().errorCount.incrementAndGet();
                 getReadResult().getErrorReport().append(StrFormatter.format(TITLE_CHECK_ERROR));
@@ -180,8 +225,8 @@ public class HutoolCellReader<R> implements CellReader<R> {
      * @retur
      */
     Excel07SaxReader initSaxReader(Set<String> templateConsistencyCheckCells) {
-        Integer targetSheetIndex = getReaderContext().sheetIndex;
-        getReaderContext().currentNewObject = getReaderContext().newObjectSupplier.get();
+        Integer targetSheetIndex = sheetIndex;
+        currentNewObject = newObjectSupplier.get();
 
 
         /*返回一个Sax读取器*/
@@ -205,9 +250,9 @@ public class HutoolCellReader<R> implements CellReader<R> {
                 }
 
                 /*解析单个单元格*/
-                if (getReaderContext().cell2setter.size() <= 0
-                        || !getReaderContext().cell2setter.containsKey((int) rowIndex)
-                        || !getReaderContext().cell2setter.get((int) rowIndex).containsKey(colIndex)
+                if (cell2setter.size() <= 0
+                        || !cell2setter.containsKey((int) rowIndex)
+                        || !cell2setter.get((int) rowIndex).containsKey(colIndex)
                 ) {
                     return;
                 }
@@ -215,23 +260,23 @@ public class HutoolCellReader<R> implements CellReader<R> {
                 templateConsistencyCheckCells.remove(ExcelCellUtils.excelIndexToCell((int) rowIndex, colIndex));
 
                 try {
-                    ExFunction cellConverter = getReaderContext().cell2converts.get((int) rowIndex).get(colIndex);
-                    BiConsumer cellConsumer = getReaderContext().cell2setter.get((int) rowIndex).get(colIndex);
+                    ExFunction cellConverter = cell2converts.get((int) rowIndex).get(colIndex);
+                    BiConsumer cellConsumer = cell2setter.get((int) rowIndex).get(colIndex);
                     String cellValue = StringConverter.parse(value);
                     /*检查必填项/检查可填项*/
                     if (StrUtil.isBlank(cellValue)) {
-                        if (getReaderContext().mustExistCells.containsKey((int) rowIndex)
-                                && getReaderContext().mustExistCells.get((int) rowIndex).contains(colIndex)) {
+                        if (mustExistCells.containsKey((int) rowIndex)
+                                && mustExistCells.get((int) rowIndex).contains(colIndex)) {
                             throw new CheckedExcelException(StrFormatter.format(FIELD_LACK_MSG, ExcelCellUtils.excelIndexToCell((int) rowIndex, colIndex)));
                         }
-                        if (getReaderContext().skipEmptyCells.containsKey((int) rowIndex)
-                                && getReaderContext().skipEmptyCells.get((int) rowIndex).contains(colIndex)) {
+                        if (skipEmptyCells.containsKey((int) rowIndex)
+                                && skipEmptyCells.get((int) rowIndex).contains(colIndex)) {
                             return;
                         }
                     }
                     Object apply = cellConverter.apply(cellValue);
-                    cellConsumer.accept(getReaderContext().currentNewObject, apply);
-                    getReadResult().setData((R) getReaderContext().currentNewObject);
+                    cellConsumer.accept(currentNewObject, apply);
+                    getReadResult().setData((R) currentNewObject);
                 } catch (Exception e) {
                     getReadResult().EXISTS_READ_FAIL.set(true);
                     getReadResult().errorCount.incrementAndGet();
@@ -241,12 +286,6 @@ public class HutoolCellReader<R> implements CellReader<R> {
                 }
             }
         });
-    }
-
-
-    @Override
-    public ReaderContext getReaderContext() {
-        return getExcelImport().sheetIndex2ReaderContext.get(getSheetIndex());
     }
 
     @Override

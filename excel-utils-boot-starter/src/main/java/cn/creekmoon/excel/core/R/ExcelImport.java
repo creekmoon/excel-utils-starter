@@ -1,7 +1,6 @@
 package cn.creekmoon.excel.core.R;
 
 import cn.creekmoon.excel.core.R.reader.Reader;
-import cn.creekmoon.excel.core.R.reader.ReaderContext;
 import cn.creekmoon.excel.core.R.reader.cell.CellReader;
 import cn.creekmoon.excel.core.R.reader.cell.HutoolCellReader;
 import cn.creekmoon.excel.core.R.reader.title.HutoolTitleReader;
@@ -50,7 +49,6 @@ import java.util.function.Supplier;
 public class ExcelImport {
 
     public BiMap<Integer, Reader> sheetIndex2ReaderBiMap = new BiMap<>(new HashMap<>());
-    public HashMap<Integer, ReaderContext> sheetIndex2ReaderContext = new HashMap<>();
     public HashMap<Integer, ReaderResult> sheetIndex2ReadResult = new HashMap<>();
 
     /*唯一识别名称 会同步生成一份文件到临时目录*/
@@ -118,7 +116,6 @@ public class ExcelImport {
         //新增读取器
         HutoolTitleReader<T> reader = new HutoolTitleReader<>(this);
         this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
-        this.sheetIndex2ReaderContext.put(sheetIndex, new ReaderContext(sheetIndex, supplier));
         this.sheetIndex2ReadResult.put(sheetIndex, new TitleReaderResult<T>());
         return reader;
     }
@@ -142,7 +139,6 @@ public class ExcelImport {
         //新增读取器
         HutoolCellReader<T> reader = new HutoolCellReader<>(this);
         this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
-        this.sheetIndex2ReaderContext.put(sheetIndex, new ReaderContext(sheetIndex, supplier));
         this.sheetIndex2ReadResult.put(sheetIndex, new CellReaderResult<T>());
         return reader;
     }
@@ -218,16 +214,14 @@ public class ExcelImport {
              BufferedOutputStream outputStream = FileUtil.getOutputStream(absoluteFilePath)) {
             for (Integer targetSheetIndex : sheetIndex2ReaderBiMap.keySet()) {
                 Sheet sheet = workbook.getSheetAt(targetSheetIndex);
-                Reader reader = sheetIndex2ReaderBiMap.get(targetSheetIndex);
-                if (reader instanceof TitleReader titleReader) {
+                Reader<?> reader = sheetIndex2ReaderBiMap.get(targetSheetIndex);
+                if (reader instanceof TitleReader<?> titleReader) {
 
                     //拿上下文状态
-                    TitleReaderResult readerResult = (TitleReaderResult) sheetIndex2ReadResult.get(targetSheetIndex);
-                    ReaderContext readerContext = titleReader.getReaderContext();
-
+                    TitleReaderResult<?> readerResult = (TitleReaderResult<?>) sheetIndex2ReadResult.get(targetSheetIndex);
                     // 推算准备要写的位置
-                    int titleRowIndex = readerContext.titleRowIndex;
-                    Integer lastTitleColumnIndex = readerContext.getLastTitleColumnIndex();
+                    int titleRowIndex = titleReader.titleRowIndex;
+                    Integer lastTitleColumnIndex = titleReader.colIndex2Title.keySet().stream().max(Integer::compareTo).get();
                     int msgTitleColumnIndex = lastTitleColumnIndex + 1;
                     Integer dataFirstRowIndex = readerResult.getDataFirstRowIndex();
                     Integer dataLatestRowIndex = readerResult.getDataLatestRowIndex();

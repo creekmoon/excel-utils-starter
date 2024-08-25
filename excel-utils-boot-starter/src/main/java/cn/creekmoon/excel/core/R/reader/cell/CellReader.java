@@ -13,7 +13,7 @@ import java.util.function.BiConsumer;
  *
  * @param <R> the type of the object being read and populated with data
  */
-public interface CellReader<R> extends Reader<R> {
+public abstract class CellReader<R> implements Reader<R> {
 
     /**
      * 添加一个单元格转换器
@@ -24,7 +24,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param <T>
      * @return
      */
-    <T> CellReader<R> addConvert(String cellReference, ExFunction<String, T> convert, BiConsumer<R, T> setter);
+    abstract public <T> CellReader<R> addConvert(String cellReference, ExFunction<String, T> convert, BiConsumer<R, T> setter);
 
     /**
      * 添加一个单元格转换器
@@ -33,7 +33,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param reader Setter方法, 例如 setName(String name)
      * @return
      */
-    CellReader<R> addConvert(String cellReference, BiConsumer<R, String> reader);
+    abstract public CellReader<R> addConvert(String cellReference, BiConsumer<R, String> reader);
 
     /**
      * 添加一个单元格转换器
@@ -45,7 +45,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param <T>
      * @return
      */
-    <T> CellReader<R> addConvert(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter);
+    abstract public <T> CellReader<R> addConvert(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter);
 
     /**
      * 添加一个单元格转换器
@@ -55,7 +55,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param setter Setter方法, 例如 setName(String name)
      * @return
      */
-    CellReader<R> addConvert(int rowIndex, int colIndex, BiConsumer<R, String> setter);
+    abstract public CellReader<R> addConvert(int rowIndex, int colIndex, BiConsumer<R, String> setter);
 
     /**
      * 添加一个单元格转换器并跳过空值
@@ -66,7 +66,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param <T>
      * @return
      */
-    <T> CellReader<R> addConvertAndSkipEmpty(int rowIndex, int colIndex, BiConsumer<R, String> setter);
+    abstract public <T> CellReader<R> addConvertAndSkipEmpty(int rowIndex, int colIndex, BiConsumer<R, String> setter);
 
     /**
      * 添加一个单元格转换器并跳过空值
@@ -78,7 +78,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param <T>
      * @return
      */
-    <T> CellReader<R> addConvertAndSkipEmpty(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter);
+    abstract public <T> CellReader<R> addConvertAndSkipEmpty(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter);
 
     /**
      * 添加一个单元格转换器并跳过空值
@@ -89,7 +89,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param <T>
      * @return
      */
-    <T> CellReader<R> addConvertAndSkipEmpty(String cellReference, ExFunction<String, T> convert, BiConsumer<R, T> setter);
+    abstract public <T> CellReader<R> addConvertAndSkipEmpty(String cellReference, ExFunction<String, T> convert, BiConsumer<R, T> setter);
 
     /**
      * 添加一个单元格转换器并跳过空值
@@ -98,7 +98,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param setter Setter方法,例如 setName(String name)
      * @return
      */
-    CellReader<R> addConvertAndSkipEmpty(String cellReference, BiConsumer<R, String> setter);
+    abstract public CellReader<R> addConvertAndSkipEmpty(String cellReference, BiConsumer<R, String> setter);
 
     /**
      * 添加一个单元格转换器并要求存在值
@@ -110,7 +110,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param <T>
      * @return
      */
-    <T> CellReader<R> addConvertAndMustExist(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter);
+    abstract public <T> CellReader<R> addConvertAndMustExist(int rowIndex, int colIndex, ExFunction<String, T> convert, BiConsumer<R, T> setter);
 
     /**
      * 添加一个单元格转换器并要求存在值
@@ -120,7 +120,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param setter Setter方法,例如 setName(String name)
      * @return
      */
-    CellReader<R> addConvertAndMustExist(int rowIndex, int colIndex, BiConsumer<R, String> setter);
+    abstract public CellReader<R> addConvertAndMustExist(int rowIndex, int colIndex, BiConsumer<R, String> setter);
 
     /**
      * 添加一个单元格转换器并要求存在值
@@ -129,7 +129,7 @@ public interface CellReader<R> extends Reader<R> {
      * @param setter Setter方法,例如 setName(String name)
      * @return
      */
-    CellReader<R> addConvertAndMustExist(String cellReference, BiConsumer<R, String> setter);
+    abstract public CellReader<R> addConvertAndMustExist(String cellReference, BiConsumer<R, String> setter);
 
 }
 

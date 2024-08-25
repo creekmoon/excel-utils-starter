@@ -8,9 +8,6 @@ import java.io.IOException;
 
 public interface Reader<R> {
 
-
-    ReaderContext getReaderContext();
-
     Integer getSheetIndex();
 
     ExcelImport getExcelImport();

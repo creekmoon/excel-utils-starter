@@ -3,7 +3,6 @@ package cn.creekmoon.excel.core.R.reader.title;
 import cn.creekmoon.excel.core.ExcelUtilsConfig;
 import cn.creekmoon.excel.core.R.ExcelImport;
 import cn.creekmoon.excel.core.R.converter.StringConverter;
-import cn.creekmoon.excel.core.R.reader.ReaderContext;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.util.ExcelConstants;
 import cn.creekmoon.excel.util.exception.CheckedExcelException;
@@ -24,7 +23,7 @@ import java.util.function.BiConsumer;
 import static cn.creekmoon.excel.util.ExcelConstants.*;
 
 @Slf4j
-public class HutoolTitleReader<R> implements TitleReader<R> {
+public class HutoolTitleReader<R> extends TitleReader<R> {
 
 
     //读取器持有其父类
@@ -43,13 +42,13 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
     @SneakyThrows
     @Override
     public Long getSheetRowCount() {
-        return getExcelImport().getSheetRowCount(getReaderContext().sheetIndex);
+        return getExcelImport().getSheetRowCount(super.sheetIndex);
     }
 
     @Override
     public <T> HutoolTitleReader<R> addConvert(String title, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
-        getReaderContext().title2converts.put(title, convert);
-        getReaderContext().title2consumers.put(title, setter);
+        super.title2converts.put(title, convert);
+        super.title2consumers.put(title, setter);
         return this;
     }
 
@@ -63,14 +62,14 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
 
     @Override
     public <T> HutoolTitleReader<R> addConvertAndSkipEmpty(String title, BiConsumer<R, String> setter) {
-        getReaderContext().skipEmptyTitles.add(title);
+        super.skipEmptyTitles.add(title);
         addConvert(title, x -> x, setter);
         return this;
     }
 
     @Override
     public <T> HutoolTitleReader<R> addConvertAndSkipEmpty(String title, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
-        getReaderContext().skipEmptyTitles.add(title);
+        super.skipEmptyTitles.add(title);
         addConvert(title, convert, setter);
         return this;
     }
@@ -78,14 +77,14 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
 
     @Override
     public HutoolTitleReader<R> addConvertAndMustExist(String title, BiConsumer<R, String> setter) {
-        getReaderContext().mustExistTitles.add(title);
+        super.mustExistTitles.add(title);
         addConvert(title, x -> x, setter);
         return this;
     }
 
     @Override
     public <T> HutoolTitleReader<R> addConvertAndMustExist(String title, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
-        getReaderContext().mustExistTitles.add(title);
+        super.mustExistTitles.add(title);
         addConvert(title, convert, setter);
         return this;
     }
@@ -101,7 +100,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
     @Override
     public <T> HutoolTitleReader<R> addConvertPostProcessor(ExConsumer<R> postProcessor) {
         if (postProcessor != null) {
-            this.getReaderContext().convertPostProcessors.add(postProcessor);
+            super.convertPostProcessors.add(postProcessor);
         }
         return this;
     }
@@ -145,9 +144,9 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      */
     @Override
     public HutoolTitleReader<R> range(int titleRowIndex, int firstDataRowIndex, int lastDataRowIndex) {
-        this.getReaderContext().titleRowIndex = titleRowIndex;
-        this.getReaderContext().firstRowIndex = firstDataRowIndex;
-        this.getReaderContext().latestRowIndex = lastDataRowIndex;
+        super.titleRowIndex = titleRowIndex;
+        super.firstRowIndex = firstDataRowIndex;
+        super.latestRowIndex = lastDataRowIndex;
         return this;
     }
 
@@ -182,45 +181,45 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      */
     private R rowConvert(Map<String, String> row) throws Exception {
         /*进行模板一致性检查*/
-        if (getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
-            if (getReaderContext().TEMPLATE_CONSISTENCY_CHECK_FAILED || !templateConsistencyCheck(getReaderContext().title2converts.keySet(), row.keySet())) {
-                getReaderContext().TEMPLATE_CONSISTENCY_CHECK_FAILED = true;
+        if (super.ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
+            if (super.TEMPLATE_CONSISTENCY_CHECK_FAILED || !templateConsistencyCheck(super.title2converts.keySet(), row.keySet())) {
+                super.TEMPLATE_CONSISTENCY_CHECK_FAILED = true;
                 throw new CheckedExcelException(TITLE_CHECK_ERROR);
             }
         }
-        getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
+        super.ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
 
         /*过滤空白行*/
-        if (getReaderContext().ENABLE_BLANK_ROW_FILTER
+        if (super.ENABLE_BLANK_ROW_FILTER
                 && row.values().stream().allMatch(x -> x == null || "".equals(x))
         ) {
             return null;
         }
 
         /*初始化空对象*/
-        R convertObject = (R) this.getReaderContext().newObjectSupplier.get();
+        R convertObject = (R) super.newObjectSupplier.get();
         /*最大转换次数*/
-        int maxConvertCount = this.getReaderContext().title2consumers.keySet().size();
+        int maxConvertCount = super.title2consumers.keySet().size();
         /*执行convert*/
         for (Map.Entry<String, String> entry : row.entrySet()) {
             /*如果包含不支持的标题,  或者已经超过最大次数则不再进行读取*/
-            if (!this.getReaderContext().title2consumers.containsKey(entry.getKey()) || maxConvertCount-- <= 0) {
+            if (!super.title2consumers.containsKey(entry.getKey()) || maxConvertCount-- <= 0) {
                 continue;
             }
             String value = Optional.ofNullable(entry.getValue()).map(x -> (String) x).orElse("");
             /*检查必填项/检查可填项*/
             if (StrUtil.isBlank(value)) {
-                if (this.getReaderContext().mustExistTitles.contains(entry.getKey())) {
+                if (super.mustExistTitles.contains(entry.getKey())) {
                     throw new CheckedExcelException(StrFormatter.format(FIELD_LACK_MSG, entry.getKey()));
                 }
-                if (this.getReaderContext().skipEmptyTitles.contains(entry.getKey())) {
+                if (super.skipEmptyTitles.contains(entry.getKey())) {
                     continue;
                 }
             }
             /*转换数据*/
             try {
-                Object convertValue = this.getReaderContext().title2converts.get(entry.getKey()).apply(value);
-                this.getReaderContext().title2consumers.get(entry.getKey()).accept(convertObject, convertValue);
+                Object convertValue = super.title2converts.get(entry.getKey()).apply(value);
+                super.title2consumers.get(entry.getKey()).accept(convertObject, convertValue);
             } catch (Exception e) {
                 log.warn("EXCEL导入数据转换失败！", e);
                 throw new CheckedExcelException(StrFormatter.format(ExcelConstants.CONVERT_FAIL_MSG + GlobalExceptionMsgManager.getExceptionMsg(e), entry.getKey()));
@@ -237,7 +236,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      */
     Excel07SaxReader initSaxReader() {
 
-        int targetSheetIndex = getReaderContext().sheetIndex;
+        int targetSheetIndex = super.sheetIndex;
         TitleReaderResult titleReaderResult = (TitleReaderResult) getReadResult();
 
         /*返回一个Sax读取器*/
@@ -256,21 +255,21 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                 }
 
                 /*读取标题*/
-                if (rowIndex == getReaderContext().titleRowIndex) {
+                if (rowIndex == titleRowIndex) {
                     for (int colIndex = 0; colIndex < rowList.size(); colIndex++) {
-                        getReaderContext().colIndex2Title.put(colIndex, StringConverter.parse(rowList.get(colIndex)));
+                        colIndex2Title.put(colIndex, StringConverter.parse(rowList.get(colIndex)));
                     }
                     return;
                 }
                 /*只读取指定范围的数据 */
-                if (rowIndex == (int) getReaderContext().titleRowIndex
-                        || rowIndex < getReaderContext().firstRowIndex
-                        || rowIndex > getReaderContext().latestRowIndex) {
+                if (rowIndex == (int) titleRowIndex
+                        || rowIndex < firstRowIndex
+                        || rowIndex > latestRowIndex) {
                     return;
                 }
                 /*没有添加 convert直接跳过 */
-                if (getReaderContext().title2converts.isEmpty()
-                        && getReaderContext().title2consumers.isEmpty()
+                if (title2converts.isEmpty()
+                        && title2consumers.isEmpty()
                 ) {
                     return;
                 }
@@ -278,7 +277,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                 /*Excel解析原生的数据. 目前只用于内部数据转换*/
                 HashMap<String, String> hashDataMap = new LinkedHashMap<>();
                 for (int colIndex = 0; colIndex < rowList.size(); colIndex++) {
-                    hashDataMap.put(getReaderContext().colIndex2Title.get(colIndex), StringConverter.parse(rowList.get(colIndex)));
+                    hashDataMap.put(colIndex2Title.get(colIndex), StringConverter.parse(rowList.get(colIndex)));
                 }
                 /*转换成业务对象*/
                 R currentObject = null;
@@ -289,7 +288,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
                         return;
                     }
                     /*转换后置处理器*/
-                    for (ExConsumer convertPostProcessor : getReaderContext().convertPostProcessors) {
+                    for (ExConsumer convertPostProcessor : convertPostProcessors) {
                         convertPostProcessor.accept(currentObject);
                     }
                     titleReaderResult.rowIndex2msg.put((int) rowIndex, CONVERT_SUCCESS_MSG);
@@ -330,7 +329,7 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      * @return
      */
     public HutoolTitleReader<R> disableTemplateConsistencyCheck() {
-        this.getReaderContext().ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
+        super.ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
         return this;
     }
 
@@ -340,15 +339,10 @@ public class HutoolTitleReader<R> implements TitleReader<R> {
      * @return
      */
     public HutoolTitleReader<R> disableBlankRowFilter() {
-        this.getReaderContext().ENABLE_BLANK_ROW_FILTER = false;
+        super.ENABLE_BLANK_ROW_FILTER = false;
         return this;
     }
 
-    @Override
-    public ReaderContext getReaderContext() {
-        Integer sheetIndex = getSheetIndex();
-        return getExcelImport().sheetIndex2ReaderContext.get(sheetIndex);
-    }
 
     @Override
     public Integer getSheetIndex() {
