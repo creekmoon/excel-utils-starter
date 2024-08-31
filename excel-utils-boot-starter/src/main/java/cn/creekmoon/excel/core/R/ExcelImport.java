@@ -5,8 +5,6 @@ import cn.creekmoon.excel.core.R.reader.cell.CellReader;
 import cn.creekmoon.excel.core.R.reader.cell.HutoolCellReader;
 import cn.creekmoon.excel.core.R.reader.title.HutoolTitleReader;
 import cn.creekmoon.excel.core.R.reader.title.TitleReader;
-import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
-import cn.creekmoon.excel.core.R.readerResult.cell.CellReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.util.ExcelConstants;
 import cn.creekmoon.excel.util.ExcelFileUtils;
@@ -18,8 +16,6 @@ import cn.hutool.core.text.csv.CsvRow;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.BigExcelWriter;
 import cn.hutool.poi.excel.ExcelUtil;
-import cn.hutool.poi.excel.sax.Excel07SaxReader;
-import cn.hutool.poi.excel.sax.handler.RowHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +33,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -49,7 +43,7 @@ import java.util.function.Supplier;
 public class ExcelImport {
 
     public BiMap<Integer, Reader> sheetIndex2ReaderBiMap = new BiMap<>(new HashMap<>());
-    public HashMap<Integer, ReaderResult> sheetIndex2ReadResult = new HashMap<>();
+
 
     /*唯一识别名称 会同步生成一份文件到临时目录*/
     public String taskId = UUID.fastUUID().toString();
@@ -71,30 +65,6 @@ public class ExcelImport {
     }
 
 
-    /**
-     * 获取SHEET页的总行数
-     *
-     * @return
-     */
-    @SneakyThrows
-    public Long getSheetRowCount(int targetSheetIndex) {
-        AtomicLong result = new AtomicLong(0);
-        Excel07SaxReader excel07SaxReader = new Excel07SaxReader(new RowHandler() {
-            @Override
-            public void handle(int sheetIndex, long rowIndex, List<Object> rowCells) {
-                if (sheetIndex != targetSheetIndex) {
-                    return;
-                }
-                result.incrementAndGet();
-            }
-        });
-        try {
-            excel07SaxReader.read(this.sourceFile.getInputStream(), -1);
-        } catch (Exception e) {
-            log.error("getSheetRowCount方法读取文件异常", e);
-        }
-        return result.get();
-    }
 
 
     /**
@@ -115,8 +85,9 @@ public class ExcelImport {
 
         //新增读取器
         HutoolTitleReader<T> reader = new HutoolTitleReader<>(this);
+        reader.newObjectSupplier = supplier;
+        reader.sheetIndex = sheetIndex;
         this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
-        this.sheetIndex2ReadResult.put(sheetIndex, new TitleReaderResult<T>());
         return reader;
     }
 
@@ -138,8 +109,9 @@ public class ExcelImport {
 
         //新增读取器
         HutoolCellReader<T> reader = new HutoolCellReader<>(this);
+        reader.newObjectSupplier = supplier;
+        reader.sheetIndex = sheetIndex;
         this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
-        this.sheetIndex2ReadResult.put(sheetIndex, new CellReaderResult<T>());
         return reader;
     }
 
@@ -218,7 +190,7 @@ public class ExcelImport {
                 if (reader instanceof TitleReader<?> titleReader) {
 
                     //拿上下文状态
-                    TitleReaderResult<?> readerResult = (TitleReaderResult<?>) sheetIndex2ReadResult.get(targetSheetIndex);
+                    TitleReaderResult<?> readerResult = (TitleReaderResult<?>) reader.getReadResult();
                     // 推算准备要写的位置
                     int titleRowIndex = titleReader.titleRowIndex;
                     Integer lastTitleColumnIndex = titleReader.colIndex2Title.keySet().stream().max(Integer::compareTo).get();

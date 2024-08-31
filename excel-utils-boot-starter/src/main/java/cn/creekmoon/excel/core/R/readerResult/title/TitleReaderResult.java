@@ -10,30 +10,18 @@ import cn.hutool.core.text.StrFormatter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 
 /**
  * 读取结果
  */
 @Slf4j
-public class TitleReaderResult<R> implements ReaderResult<R> {
+public class TitleReaderResult<R> extends ReaderResult<R> {
 
-    public LocalDateTime readStartTime;
-    public LocalDateTime readSuccessTime;
-    public LocalDateTime consumeSuccessTime;
-
-    /*错误次数统计*/
-    public AtomicInteger errorCount = new AtomicInteger(0);
-    public StringBuilder errorReport = new StringBuilder();
-
-    /*存在读取失败的数据*/
-    public AtomicReference<Boolean> existsReadFail = new AtomicReference<>(false);
 
     /*K=行下标 V=数据*/
     public BiMap<Integer, R> rowIndex2dataBiMap = new BiMap<>(new LinkedHashMap<>());
@@ -42,7 +30,7 @@ public class TitleReaderResult<R> implements ReaderResult<R> {
     public LinkedHashMap<Integer, String> rowIndex2msg = new LinkedHashMap<>();
 
     public List<R> getAll() {
-        if (existsReadFail.get()) {
+        if (EXISTS_READ_FAIL.get()) {
             // 如果转化阶段就存在失败数据, 意味着数据不完整,应该返回空
             return new ArrayList<>();
         }
@@ -62,7 +50,7 @@ public class TitleReaderResult<R> implements ReaderResult<R> {
             } catch (Exception e) {
                 errorCount.incrementAndGet();
                 String exceptionMsg = GlobalExceptionMsgManager.getExceptionMsg(e);
-                getErrorReport().append(StrFormatter.format("第[{}]行发生错误[{}]", (int) rowIndex + 1, exceptionMsg));
+                errorReport.append(StrFormatter.format("第[{}]行发生错误[{}]", (int) rowIndex + 1, exceptionMsg));
                 rowIndex2msg.put(rowIndex, exceptionMsg);
             }
         });
@@ -110,30 +98,10 @@ public class TitleReaderResult<R> implements ReaderResult<R> {
     }
 
 
-    @Override
-    public StringBuilder getErrorReport() {
-        return errorReport;
-    }
 
     public AtomicInteger getErrorCount() {
         return errorCount;
     }
-
-    @Override
-    public LocalDateTime getReadStartTime() {
-        return readStartTime;
-    }
-
-    @Override
-    public LocalDateTime getReadSuccessTime() {
-        return readSuccessTime;
-    }
-
-    @Override
-    public LocalDateTime getConsumeSuccessTime() {
-        return consumeSuccessTime;
-    }
-
 
     public Integer getDataLatestRowIndex() {
         return this.rowIndex2msg.keySet().stream().max(Integer::compareTo).get();

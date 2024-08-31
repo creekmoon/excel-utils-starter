@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 
 import static cn.creekmoon.excel.util.ExcelConstants.*;
@@ -26,12 +27,9 @@ import static cn.creekmoon.excel.util.ExcelConstants.*;
 public class HutoolTitleReader<R> extends TitleReader<R> {
 
 
-    //读取器持有其父类
-    ExcelImport excelImport;
-
-
-    public HutoolTitleReader(ExcelImport excelImport) {
-        this.excelImport = excelImport;
+    public HutoolTitleReader(ExcelImport parent) {
+        super(parent);
+        readerResult = new TitleReaderResult<R>();
     }
 
     /**
@@ -42,8 +40,24 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
     @SneakyThrows
     @Override
     public Long getSheetRowCount() {
-        return getExcelImport().getSheetRowCount(super.sheetIndex);
+        AtomicLong result = new AtomicLong(0);
+        Excel07SaxReader excel07SaxReader = new Excel07SaxReader(new RowHandler() {
+            @Override
+            public void handle(int sheetIndex, long rowIndex, List<Object> rowCells) {
+                if (sheetIndex != HutoolTitleReader.super.sheetIndex) {
+                    return;
+                }
+                result.incrementAndGet();
+            }
+        });
+        try {
+            excel07SaxReader.read(getParent().sourceFile.getInputStream(), -1);
+        } catch (Exception e) {
+            log.error("getSheetRowCount方法读取文件异常", e);
+        }
+        return result.get();
     }
+
 
     @Override
     public <T> HutoolTitleReader<R> addConvert(String title, ExFunction<String, T> convert, BiConsumer<R, T> setter) {
@@ -123,7 +137,7 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
             //新版读取 使用SAX读取模式
             Excel07SaxReader excel07SaxReader = initSaxReader();
             /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
-            excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
+            excel07SaxReader.read(this.getParent().sourceFile.getInputStream(), -1);
         } catch (Exception e) {
             log.error("SaxReader读取Excel文件异常", e);
         } finally {
@@ -181,13 +195,13 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
      */
     private R rowConvert(Map<String, String> row) throws Exception {
         /*进行模板一致性检查*/
-        if (super.ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
+        if (super.TEMPLATE_CONSISTENCY_CHECK_ENABLE) {
             if (super.TEMPLATE_CONSISTENCY_CHECK_FAILED || !templateConsistencyCheck(super.title2converts.keySet(), row.keySet())) {
                 super.TEMPLATE_CONSISTENCY_CHECK_FAILED = true;
                 throw new CheckedExcelException(TITLE_CHECK_ERROR);
             }
         }
-        super.ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
+        super.TEMPLATE_CONSISTENCY_CHECK_ENABLE = false;
 
         /*过滤空白行*/
         if (super.ENABLE_BLANK_ROW_FILTER
@@ -296,11 +310,11 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
                     titleReaderResult.rowIndex2dataBiMap.put((int) rowIndex, currentObject);
                 } catch (Exception e) {
                     //假如存在任一数据convert阶段就失败的单, 将打一个标记
-                    titleReaderResult.existsReadFail.set(true);
+                    titleReaderResult.EXISTS_READ_FAIL.set(true);
                     titleReaderResult.errorCount.incrementAndGet();
                     /*写入导出Excel结果*/
                     String exceptionMsg = GlobalExceptionMsgManager.getExceptionMsg(e);
-                    getReadResult().getErrorReport().append(StrFormatter.format("第[{}]行发生错误[{}]", (int) rowIndex + 1, exceptionMsg));
+                    getReadResult().errorReport.append(StrFormatter.format("第[{}]行发生错误[{}]", (int) rowIndex + 1, exceptionMsg));
                     titleReaderResult.rowIndex2msg.put((int) rowIndex, exceptionMsg);
 
                 }
@@ -329,7 +343,7 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
      * @return
      */
     public HutoolTitleReader<R> disableTemplateConsistencyCheck() {
-        super.ENABLE_TEMPLATE_CONSISTENCY_CHECK = false;
+        super.TEMPLATE_CONSISTENCY_CHECK_ENABLE = false;
         return this;
     }
 
@@ -346,16 +360,12 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
 
     @Override
     public Integer getSheetIndex() {
-        return getExcelImport().sheetIndex2ReaderBiMap.getKey(this);
+        return getParent().sheetIndex2ReaderBiMap.getKey(this);
     }
 
     @Override
     public TitleReaderResult<R> getReadResult() {
-        return (TitleReaderResult) getExcelImport().sheetIndex2ReadResult.get(getSheetIndex());
+        return (TitleReaderResult) readerResult;
     }
 
-    @Override
-    public ExcelImport getExcelImport() {
-        return excelImport;
-    }
 }

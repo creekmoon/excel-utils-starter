@@ -108,9 +108,9 @@ public class ImportTest {
                 });
         assertEquals(1, sheet2.getErrorCount().get(), "预期发生一个错误");
         //预期持续读取时间大于等于1秒
-        log.info("ReadStartTime = {} ", sheet2.getReadStartTime());
-        log.info("ConsumeSuccessTime() = {} ", sheet2.getConsumeSuccessTime());
-        assertTrue(ChronoUnit.SECONDS.between(sheet2.getReadStartTime(), sheet2.getConsumeSuccessTime()) >= 2, "预期持续读取时间大于等于2秒");
+        log.info("ReadStartTime = {} ", sheet2.readStartTime);
+        log.info("ConsumeSuccessTime() = {} ", sheet2.consumeSuccessTime);
+        assertTrue(ChronoUnit.SECONDS.between(sheet2.readStartTime, sheet2.consumeSuccessTime) >= 2, "预期持续读取时间大于等于2秒");
 
         File file = excelImport.generateResultFile();
         assertTrue(FileUtil.exist(file), "文件预期应该正常生成");

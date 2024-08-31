@@ -150,7 +150,7 @@ public class ExampleController {
                     log.info(x.toString());
                 });
 
-        System.out.println("readerResult.getErrorReport() = " + readerResult.getErrorReport());
+        System.out.println("readerResult.getErrorReport() = " + readerResult.errorReport);
         excelImport.response(response);
 
     }

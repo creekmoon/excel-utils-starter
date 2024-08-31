@@ -5,6 +5,7 @@ import cn.creekmoon.excel.core.R.ExcelImport;
 import cn.creekmoon.excel.core.R.converter.StringConverter;
 import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.cell.CellReaderResult;
+import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.util.ExcelCellUtils;
 import cn.creekmoon.excel.util.exception.CheckedExcelException;
 import cn.creekmoon.excel.util.exception.ExConsumer;
@@ -14,15 +15,16 @@ import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.sax.Excel07SaxReader;
 import cn.hutool.poi.excel.sax.handler.RowHandler;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellStyle;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 
 import static cn.creekmoon.excel.util.ExcelConstants.*;
 
@@ -30,70 +32,9 @@ import static cn.creekmoon.excel.util.ExcelConstants.*;
 public class HutoolCellReader<R> extends CellReader<R> {
 
 
-    protected ExcelImport parent;
-    /**
-     * 标题行号 这里是0,意味着第一行是标题
-     */
-    public int titleRowIndex = 0;
-
-    /**
-     * 首行数据行号
-     */
-    public int firstRowIndex = titleRowIndex + 1;
-
-    /**
-     * 末行数据行号
-     */
-    public int latestRowIndex = Integer.MAX_VALUE;
-
-    public int sheetIndex;
-    public Supplier newObjectSupplier;
-    public Object currentNewObject;
-
-
-    public HashMap<Integer, String> colIndex2Title = new HashMap<>();
-
-    /* 必填项过滤  key=rowIndex  value=<colIndex> */
-    public LinkedHashMap<Integer, Set<Integer>> mustExistCells = new LinkedHashMap<>(32);
-    /* 选填项过滤  key=rowIndex  value=<colIndex> */
-    public LinkedHashMap<Integer, Set<Integer>> skipEmptyCells = new LinkedHashMap<>(32);
-
-    /* key=rowIndex  value=<colIndex,Consumer> 单元格转换器*/
-    public LinkedHashMap<Integer, HashMap<Integer, ExFunction>> cell2converts = new LinkedHashMap(32);
-
-    /* key=rowIndex  value=<colIndex,Consumer> 单元格消费者(通常是setter方法)*/
-    public LinkedHashMap<Integer, HashMap<Integer, BiConsumer>> cell2setter = new LinkedHashMap(32);
-
-
-    /* key=title  value=执行器 */
-    public LinkedHashMap<String, ExFunction> title2converts = new LinkedHashMap(32);
-    /* key=title value=消费者(通常是setter方法)*/
-    public LinkedHashMap<String, BiConsumer> title2consumers = new LinkedHashMap(32);
-    public List<ExConsumer> convertPostProcessors = new ArrayList<>();
-    /* key=title */
-    public Set<String> mustExistTitles = new HashSet<>(32);
-    public Set<String> skipEmptyTitles = new HashSet<>(32);
-
-    /*启用空白行过滤*/
-    public boolean ENABLE_BLANK_ROW_FILTER = true;
-    /*启用模板一致性检查 为了防止模板导入错误*/
-    public boolean ENABLE_TEMPLATE_CONSISTENCY_CHECK = true;
-    /*标志位, 模板一致性检查已经失败 */
-    public boolean TEMPLATE_CONSISTENCY_CHECK_FAILED = false;
-
     public HutoolCellReader(ExcelImport parent) {
-        this.parent = parent;
-    }
-
-
-    /**
-     * 获取SHEET页的总行数
-     *
-     * @return
-     */
-    @SneakyThrows
-    public Long getSheetRowCount() {
-        return getExcelImport().getSheetRowCount(sheetIndex);
+        super(parent);
+        readerResult = new TitleReaderResult<R>();
     }
 
     @Override
@@ -177,7 +118,7 @@ public class HutoolCellReader<R> extends CellReader<R> {
         try {
             /*模版一致性检查:  获取声明的所有CELL, 接下来如果读取到cell就会移除, 当所有cell命中时说明单元格是一致的.*/
             Set<String> templateConsistencyCheckCells = new HashSet<>();
-            if (ENABLE_TEMPLATE_CONSISTENCY_CHECK) {
+            if (TEMPLATE_CONSISTENCY_CHECK_ENABLE) {
                 cell2setter.forEach((rowIndex, colIndexMap) -> {
                     colIndexMap.forEach((colIndex, var) -> {
                         templateConsistencyCheckCells.add(ExcelCellUtils.excelIndexToCell(rowIndex, colIndex));
@@ -187,13 +128,13 @@ public class HutoolCellReader<R> extends CellReader<R> {
 
             Excel07SaxReader excel07SaxReader = initSaxReader(templateConsistencyCheckCells);
             /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
-            excel07SaxReader.read(this.getExcelImport().sourceFile.getInputStream(), -1);
+            excel07SaxReader.read(this.getParent().sourceFile.getInputStream(), -1);
 
             /*模版一致性检查失败*/
-            if (ENABLE_TEMPLATE_CONSISTENCY_CHECK && !templateConsistencyCheckCells.isEmpty()) {
+            if (TEMPLATE_CONSISTENCY_CHECK_ENABLE && !templateConsistencyCheckCells.isEmpty()) {
                 getReadResult().EXISTS_READ_FAIL.set(true);
                 getReadResult().errorCount.incrementAndGet();
-                getReadResult().getErrorReport().append(StrFormatter.format(TITLE_CHECK_ERROR));
+                getReadResult().errorReport.append(StrFormatter.format(TITLE_CHECK_ERROR));
             }
 
         } catch (Exception e) {
@@ -206,14 +147,10 @@ public class HutoolCellReader<R> extends CellReader<R> {
         return getReadResult();
     }
 
-    @Override
-    public ExcelImport getExcelImport() {
-        return parent;
-    }
 
     @Override
     public CellReaderResult<R> getReadResult() {
-        return (CellReaderResult) parent.sheetIndex2ReadResult.get(getSheetIndex());
+        return (CellReaderResult) readerResult;
     }
 
 
@@ -280,7 +217,7 @@ public class HutoolCellReader<R> extends CellReader<R> {
                 } catch (Exception e) {
                     getReadResult().EXISTS_READ_FAIL.set(true);
                     getReadResult().errorCount.incrementAndGet();
-                    getReadResult().getErrorReport().append(StrFormatter.format(CONVERT_FAIL_MSG, ExcelCellUtils.excelIndexToCell((int) rowIndex, colIndex)))
+                    getReadResult().errorReport.append(StrFormatter.format(CONVERT_FAIL_MSG, ExcelCellUtils.excelIndexToCell((int) rowIndex, colIndex)))
                             .append(GlobalExceptionMsgManager.getExceptionMsg(e))
                             .append(";");
                 }
@@ -290,6 +227,6 @@ public class HutoolCellReader<R> extends CellReader<R> {
 
     @Override
     public Integer getSheetIndex() {
-        return getExcelImport().sheetIndex2ReaderBiMap.getKey(this);
+        return getParent().sheetIndex2ReaderBiMap.getKey(this);
     }
 }
