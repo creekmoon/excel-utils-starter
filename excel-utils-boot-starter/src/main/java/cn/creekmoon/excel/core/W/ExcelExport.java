@@ -1,6 +1,7 @@
 package cn.creekmoon.excel.core.W;
 
 
+import cn.creekmoon.excel.core.W.title.HutoolTitleWriter;
 import cn.creekmoon.excel.util.ExcelConstants;
 import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.lang.UUID;
@@ -30,18 +31,21 @@ public class ExcelExport {
     public String filePath = ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId);
     /*自定义的名称*/
     public String excelName;
-    /*写入器*/
+
+    /*写入器 hutoolTitleWriter专用*/
     public BigExcelWriter bigExcelWriter;
+
     /*
      * sheet页和导出对象的映射关系
      * */
-    public Map<String, SheetWriter> sheetName2SheetWriter = new HashMap<>();
+    public Map<String, HutoolTitleWriter> sheetName2SheetWriter = new HashMap<>();
+
 
     private ExcelExport() {
 
     }
 
-    public static <T> SheetWriter<T> create(Class<T> c) {
+    public static <T> HutoolTitleWriter<T> create(Class<T> c) {
         ExcelExport excelExport = create();
         return excelExport.switchSheet(c);
     }
@@ -66,7 +70,7 @@ public class ExcelExport {
     /**
      * 切换到新的标签页
      */
-    public <T> SheetWriter<T> switchSheet(String sheetName, Class<T> newDataClass) {
+    public <T> HutoolTitleWriter<T> switchSheet(String sheetName, Class<T> newDataClass) {
         /*第一次切换sheet页是重命名当前sheet*/
         if (sheetName2SheetWriter.isEmpty()) {
             getBigExcelWriter().renameSheet(sheetName);
@@ -76,15 +80,16 @@ public class ExcelExport {
             getBigExcelWriter().setSheet(sheetName);
         }
         return sheetName2SheetWriter.computeIfAbsent(sheetName, s -> {
-            return new SheetWriter<>(this, new SheetWriterContext(sheetName));
+            return new HutoolTitleWriter<T>(this, sheetName);
         });
 
     }
 
+
     /**
      * 切换到新的标签页
      */
-    public <T> SheetWriter<T> switchSheet(Class<T> newDataClass) {
+    public <T> HutoolTitleWriter<T> switchSheet(Class<T> newDataClass) {
         int indexSeq = 0;
         while (sheetName2SheetWriter.containsKey(generateSheetNameByIndex(indexSeq))) {
             indexSeq++;
@@ -107,11 +112,6 @@ public class ExcelExport {
         getBigExcelWriter().close();
         return taskId;
     }
-
-
-
-
-
 
 
     /**

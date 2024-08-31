@@ -1,15 +1,13 @@
-package cn.creekmoon.excel.core.W;
+package cn.creekmoon.excel.core.W.title;
 
-import cn.creekmoon.excel.core.W.SheetWriterContext.Title;
+import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.BigExcelWriter;
 import cn.hutool.poi.excel.style.StyleUtil;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
 import java.io.IOException;
@@ -20,18 +18,50 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class SheetWriter<R> {
+public class HutoolTitleWriter<R> {
 
-    public SheetWriterContext sheetWriterContext;
 
     protected ExcelExport parent;
+
+    protected String sheetName;
+
+    /**
+     * 表头集合
+     */
+    protected List<Title> titles = new ArrayList<>();
+    /**
+     * 表头集合
+     */
+    protected HashMap<Integer, List<ConditionStyle>> colIndex2Styles = new HashMap<>();
+
+    /* 多级表头时会用到 全局标题深度  initTitle方法会给其赋值
+     *
+     *   |       title               |     深度=3    rowIndex=0
+     *   |   titleA    |    titleB   |     深度=2    rowIndex=1
+     *   |title1|title2|title3|title4|     深度=1    rowIndex=2
+     * */
+    protected Integer MAX_TITLE_DEPTH = null;
+
+    /* 多级表头时会用到  深度和标题的映射关系*/
+    protected HashMap<Integer, List<Title>> depth2Titles = new HashMap<>();
+
+
+    /**
+     * 当前写入行,切换sheet页时需要还原这个上下文数据
+     */
+    protected int currentRow = 0;
+
+    public HutoolTitleWriter(ExcelExport parent, String sheetName) {
+        this.parent = parent;
+        this.sheetName = sheetName;
+    }
 
 
     /**
      * 添加标题
      */
-    public SheetWriter<R> addTitle(String titleName, Function<R, Object> valueFunction) {
-        sheetWriterContext.titles.add(Title.of(titleName, valueFunction));
+    public HutoolTitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction) {
+        titles.add(Title.of(titleName, valueFunction));
         return this;
     }
 
@@ -39,7 +69,7 @@ public class SheetWriter<R> {
      * 获取当前的表头数量
      */
     public int countTitles() {
-        return sheetWriterContext.titles.size();
+        return titles.size();
     }
 
     /**
@@ -49,8 +79,8 @@ public class SheetWriter<R> {
      * @param styleInitializer 样式初始化器
      * @return
      */
-    public SheetWriter<R> setDataStyle(Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
-        return setDataStyle(sheetWriterContext.titles.size() - 1, condition, styleInitializer);
+    public HutoolTitleWriter<R> setDataStyle(Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
+        return setDataStyle(titles.size() - 1, condition, styleInitializer);
     }
 
     /**
@@ -61,7 +91,7 @@ public class SheetWriter<R> {
      * @param styleInitializer 样式的初始化内容
      * @return
      */
-    public SheetWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
+    public HutoolTitleWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
         /*初始化样式*/
 //        CellStyle newCellStyle = parent.getBigExcelWriter().createCellStyle();
         XSSFCellStyle newCellStyle = (XSSFCellStyle) StyleUtil.createDefaultCellStyle(parent.getBigExcelWriter().getWorkbook());
@@ -69,10 +99,10 @@ public class SheetWriter<R> {
         ConditionStyle conditionStyle = new ConditionStyle(condition, newCellStyle);
 
         /*保存映射结果*/
-        if (!sheetWriterContext.colIndex2Styles.containsKey(colIndex)) {
-            sheetWriterContext.colIndex2Styles.put(colIndex, new ArrayList<>());
+        if (!colIndex2Styles.containsKey(colIndex)) {
+            colIndex2Styles.put(colIndex, new ArrayList<>());
         }
-        sheetWriterContext.colIndex2Styles.get(colIndex).add(conditionStyle);
+        colIndex2Styles.get(colIndex).add(conditionStyle);
         return this;
     }
 
@@ -83,7 +113,7 @@ public class SheetWriter<R> {
      * @param styleInitializer 样式初始化器
      * @return
      */
-    public SheetWriter<R> setDataStyle(Consumer<XSSFCellStyle> styleInitializer) {
+    public HutoolTitleWriter<R> setDataStyle(Consumer<XSSFCellStyle> styleInitializer) {
         return this.setDataStyle(x -> true, styleInitializer);
     }
 
@@ -93,7 +123,7 @@ public class SheetWriter<R> {
      * @param data
      * @return
      */
-    public SheetWriter<R> write(List<R> data) {
+    public HutoolTitleWriter<R> write(List<R> data) {
         return write(data, ExcelExport.WriteStrategy.CONTINUE_ON_ERROR);
     }
 
@@ -104,7 +134,7 @@ public class SheetWriter<R> {
      * @param data key=标题 value=行内容
      * @return
      */
-    protected SheetWriter<R> writeByMap(List<Map<String, Object>> data) {
+    protected HutoolTitleWriter<R> writeByMap(List<Map<String, Object>> data) {
         preWritingContextAdjust();
         parent.getBigExcelWriter().write(data);
         postWritingContextAdjust();
@@ -118,7 +148,7 @@ public class SheetWriter<R> {
      * @param writeStrategy 写入策略
      * @return
      */
-    private SheetWriter<R> write(List<R> vos, ExcelExport.WriteStrategy writeStrategy) {
+    private HutoolTitleWriter<R> write(List<R> vos, ExcelExport.WriteStrategy writeStrategy) {
         preWritingContextAdjust();
 
         this.initTitles();
@@ -127,7 +157,7 @@ public class SheetWriter<R> {
                         .map(
                                 vo -> {
                                     List<Object> row = new LinkedList<>();
-                                    for (Title<R> title : sheetWriterContext.titles) {
+                                    for (Title<R> title : titles) {
                                         //当前行中的某个属性值
                                         Object data = null;
                                         try {
@@ -179,8 +209,8 @@ public class SheetWriter<R> {
     private void setDataStyle(List<R> vos, int startRowIndex, int endRowIndex) {
         for (int i = 0; i < vos.size(); i++) {
             R vo = vos.get(i);
-            for (int colIndex = 0; colIndex < sheetWriterContext.titles.size(); colIndex++) {
-                List<ConditionStyle> styleList = sheetWriterContext.colIndex2Styles.getOrDefault(colIndex, Collections.EMPTY_LIST);
+            for (int colIndex = 0; colIndex < titles.size(); colIndex++) {
+                List<ConditionStyle> styleList = colIndex2Styles.getOrDefault(colIndex, Collections.EMPTY_LIST);
                 for (ConditionStyle conditionStyle : styleList) {
                     if (conditionStyle.condition.test(vo)) {
                         /*写回样式*/
@@ -202,32 +232,32 @@ public class SheetWriter<R> {
             return;
         }
 
-        sheetWriterContext.MAX_TITLE_DEPTH = sheetWriterContext.titles.stream()
-                .map(x -> StrUtil.count(x.titleName, Title.PARENT_TITLE_SEPARATOR) + 1)
+        MAX_TITLE_DEPTH = titles.stream()
+                .map(x -> StrUtil.count(x.titleName, x.PARENT_TITLE_SEPARATOR) + 1)
                 .max(Comparator.naturalOrder())
                 .orElse(1);
         if (parent.debugger) {
-            System.out.println("[Excel构建] 表头深度获取成功! 表头最大深度为" + sheetWriterContext.MAX_TITLE_DEPTH);
+            System.out.println("[Excel构建] 表头深度获取成功! 表头最大深度为" + MAX_TITLE_DEPTH);
         }
 
         /*多级表头初始化*/
-        for (int i = 0; i < sheetWriterContext.titles.size(); i++) {
-            Title oneTitle = sheetWriterContext.titles.get(i);
+        for (int i = 0; i < titles.size(); i++) {
+            Title oneTitle = titles.get(i);
             changeTitleWithMaxlength(oneTitle);
             HashMap<Integer, Title> map = oneTitle.convert2ChainTitle(i);
             map.forEach((depth, title) -> {
-                if (!sheetWriterContext.depth2Titles.containsKey(depth)) {
-                    sheetWriterContext.depth2Titles.put(depth, new ArrayList<>());
+                if (!depth2Titles.containsKey(depth)) {
+                    depth2Titles.put(depth, new ArrayList<>());
                 }
-                sheetWriterContext.depth2Titles.get(depth).add(title);
+                depth2Titles.get(depth).add(title);
             });
         }
 
         /*横向合并相同名称的标题 PS:不会对最后一行进行横向合并 意味着允许最后一行出现相同的名称*/
-        for (int i = 1; i <= sheetWriterContext.MAX_TITLE_DEPTH; i++) {
+        for (int i = 1; i <= MAX_TITLE_DEPTH; i++) {
             Integer rowsIndex = getRowsIndexByDepth(i);
             final int finalI = i;
-            Map<Object, List<Title>> collect = sheetWriterContext.depth2Titles
+            Map<Object, List<Title>> collect = depth2Titles
                     .get(i)
                     .stream()
                     .collect(Collectors.groupingBy(title -> {
@@ -239,7 +269,7 @@ public class SheetWriter<R> {
                         Title x = title;
                         StringBuilder groupName = new StringBuilder(x.titleName);
                         while (x.parentTitle != null) {
-                            groupName.insert(0, x.parentTitle.titleName + Title.PARENT_TITLE_SEPARATOR);
+                            groupName.insert(0, x.parentTitle.titleName + x.PARENT_TITLE_SEPARATOR);
                             x = x.parentTitle;
                         }
                         return groupName.toString();
@@ -270,10 +300,10 @@ public class SheetWriter<R> {
         }
 
         /*纵向合并title*/
-        for (int colIndex = 0; colIndex < sheetWriterContext.titles.size(); colIndex++) {
-            Title<R> title = sheetWriterContext.titles.get(colIndex);
+        for (int colIndex = 0; colIndex < titles.size(); colIndex++) {
+            Title<R> title = titles.get(colIndex);
             int sameCount = 0; //重复的数量
-            for (Integer depth = 1; depth <= sheetWriterContext.MAX_TITLE_DEPTH; depth++) {
+            for (Integer depth = 1; depth <= MAX_TITLE_DEPTH; depth++) {
                 if (title.parentTitle != null && title.titleName.equals(title.parentTitle.titleName)) {
                     /*发现重复的单元格,不会马上合并 因为可能有更多重复的*/
                     sameCount++;
@@ -299,23 +329,23 @@ public class SheetWriter<R> {
      * @return
      */
     private boolean isTitleInitialized() {
-        return this.sheetWriterContext.MAX_TITLE_DEPTH != null;
+        return this.MAX_TITLE_DEPTH != null;
     }
 
     /**
      * 重置标题 当需要再次使用标题时
      */
     private void restTitles() {
-        this.sheetWriterContext.MAX_TITLE_DEPTH = null;
-        this.sheetWriterContext.titles.clear();
-        this.sheetWriterContext.depth2Titles.clear();
+        this.MAX_TITLE_DEPTH = null;
+        this.titles.clear();
+        this.depth2Titles.clear();
     }
 
 
     /**
      * 默认设置列宽 : 简单粗暴将前500列都设置宽度20
      */
-    public SheetWriter<R> setColumnWidthDefault() {
+    public HutoolTitleWriter<R> setColumnWidthDefault() {
         this.setColumnWidth(500, 20);
         return this;
     }
@@ -349,7 +379,7 @@ public class SheetWriter<R> {
      * @return
      */
     private Integer getRowsIndexByDepth(int depth) {
-        return sheetWriterContext.MAX_TITLE_DEPTH - depth;
+        return MAX_TITLE_DEPTH - depth;
     }
 
 
@@ -364,21 +394,15 @@ public class SheetWriter<R> {
      * @return 原对象
      */
     private Title changeTitleWithMaxlength(Title title) {
-        int currentMaxDepth = StrUtil.count(title.titleName, Title.PARENT_TITLE_SEPARATOR) + 1;
-        if (sheetWriterContext.MAX_TITLE_DEPTH != currentMaxDepth) {
-            String[] split = title.titleName.split(Title.PARENT_TITLE_SEPARATOR);
+        int currentMaxDepth = StrUtil.count(title.titleName, title.PARENT_TITLE_SEPARATOR) + 1;
+        if (MAX_TITLE_DEPTH != currentMaxDepth) {
+            String[] split = title.titleName.split(title.PARENT_TITLE_SEPARATOR);
             String lastTitleName = split[split.length - 1];
-            for (int y = 0; y < sheetWriterContext.MAX_TITLE_DEPTH - currentMaxDepth; y++) {
-                title.titleName = title.titleName + Title.PARENT_TITLE_SEPARATOR + lastTitleName;
+            for (int y = 0; y < MAX_TITLE_DEPTH - currentMaxDepth; y++) {
+                title.titleName = title.titleName + title.PARENT_TITLE_SEPARATOR + lastTitleName;
             }
         }
         return title;
-    }
-
-
-    public SheetWriter(ExcelExport parent, SheetWriterContext sheetWriterContext) {
-        this.parent = parent;
-        this.sheetWriterContext = sheetWriterContext;
     }
 
 
@@ -391,7 +415,7 @@ public class SheetWriter<R> {
     /**
      * 切换到新的标签页
      */
-    public <T> SheetWriter<T> switchSheet(String sheetName, Class<T> newDataClass) {
+    public <T> HutoolTitleWriter<T> switchSheet(String sheetName, Class<T> newDataClass) {
         return parent.switchSheet(sheetName, newDataClass);
     }
 
@@ -399,24 +423,24 @@ public class SheetWriter<R> {
      * 写前上下文调整
      */
     public void preWritingContextAdjust() {
-        if (parent.getBigExcelWriter().getSheet().getSheetName().equals(sheetWriterContext.sheetName)) {
+        if (parent.getBigExcelWriter().getSheet().getSheetName().equals(sheetName)) {
             return;
         }
-        parent.getBigExcelWriter().setSheet(sheetWriterContext.sheetName);
-        parent.getBigExcelWriter().setCurrentRow(sheetWriterContext.currentRow);
+        parent.getBigExcelWriter().setSheet(sheetName);
+        parent.getBigExcelWriter().setCurrentRow(currentRow);
     }
 
     /**
      * 写后上下文调整
      */
     public void postWritingContextAdjust() {
-        sheetWriterContext.currentRow = parent.getBigExcelWriter().getCurrentRow();
+        currentRow = parent.getBigExcelWriter().getCurrentRow();
     }
 
     /**
      * 切换到新的标签页
      */
-    public <T> SheetWriter<T> switchSheet(Class<T> newDataClass) {
+    public <T> HutoolTitleWriter<T> switchSheet(Class<T> newDataClass) {
         return parent.switchSheet(newDataClass);
     }
 
@@ -432,10 +456,4 @@ public class SheetWriter<R> {
         ExcelFileUtils.response(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId), parent.excelName, response);
     }
 
-    /*条件样式*/
-    @AllArgsConstructor
-    public class ConditionStyle {
-        Predicate<R> condition;
-        CellStyle style;
-    }
 }
