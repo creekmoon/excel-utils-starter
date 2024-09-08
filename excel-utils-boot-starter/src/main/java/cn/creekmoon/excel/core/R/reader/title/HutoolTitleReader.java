@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static cn.creekmoon.excel.util.ExcelConstants.*;
 
@@ -27,9 +28,11 @@ import static cn.creekmoon.excel.util.ExcelConstants.*;
 public class HutoolTitleReader<R> extends TitleReader<R> {
 
 
-    public HutoolTitleReader(ExcelImport parent) {
+    public HutoolTitleReader(ExcelImport parent, Integer sheetIndex, Supplier newObjectSupplier) {
         super(parent);
-        readerResult = new TitleReaderResult<R>();
+        super.readerResult = new TitleReaderResult<R>();
+        super.sheetIndex = sheetIndex;
+        super.newObjectSupplier = newObjectSupplier;
     }
 
     /**

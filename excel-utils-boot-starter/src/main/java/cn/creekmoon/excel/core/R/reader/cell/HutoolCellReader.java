@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static cn.creekmoon.excel.util.ExcelConstants.*;
 
@@ -32,9 +33,11 @@ import static cn.creekmoon.excel.util.ExcelConstants.*;
 public class HutoolCellReader<R> extends CellReader<R> {
 
 
-    public HutoolCellReader(ExcelImport parent) {
+    public HutoolCellReader(ExcelImport parent, Integer sheetIndex, Supplier newObjectSupplier) {
         super(parent);
-        readerResult = new TitleReaderResult<R>();
+        super.readerResult = new TitleReaderResult<R>();
+        super.sheetIndex = sheetIndex;
+        super.newObjectSupplier = newObjectSupplier;
     }
 
     @Override

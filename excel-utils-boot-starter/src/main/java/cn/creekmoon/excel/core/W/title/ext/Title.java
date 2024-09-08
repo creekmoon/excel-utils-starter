@@ -8,14 +8,14 @@ import java.util.function.Function;
 /**
  * 标题类  是个单向链表 会指向自己的父表头
  *
- * @param <R>
+ * @param
  */
-public class Title<R> {
+public class Title {
 
 
     public Title parentTitle;
     public String titleName;
-    public Function<R, Object> valueFunction;
+    public Function<Object, String> valueFunction;
     /* 列坐标 开始于第几列  */
     public int startColIndex;
     /* 列坐标 结束于第几列 */
@@ -23,7 +23,7 @@ public class Title<R> {
     /* 父标题分隔符*/
     public String PARENT_TITLE_SEPARATOR = "::";
 
-    public Title(String titleName, Function<R, Object> valueFunction) {
+    public Title(String titleName, Function<Object, String> valueFunction) {
         this.titleName = titleName;
         this.valueFunction = valueFunction;
     }
@@ -32,15 +32,15 @@ public class Title<R> {
 
     }
 
-    public static <R> Title<R> of(String titleName, Function<R, Object> valueFunction) {
-        Title<R> newTitle = new Title<>();
+    public static Title of(String titleName, Function<Object, String> valueFunction) {
+        Title newTitle = new Title();
         newTitle.titleName = titleName;
         newTitle.valueFunction = valueFunction;
         return newTitle;
     }
 
-    public static <R> Title<R> of(String titleName, Function<R, Object> valueFunction, String parentTitleSeparator) {
-        Title<R> newTitle = new Title<>();
+    public static Title of(String titleName, Function<Object, String> valueFunction, String parentTitleSeparator) {
+        Title newTitle = new Title();
         newTitle.titleName = titleName;
         newTitle.valueFunction = valueFunction;
         newTitle.PARENT_TITLE_SEPARATOR = parentTitleSeparator;
@@ -53,7 +53,7 @@ public class Title<R> {
      * @param currentColIndex 当前标题的列位置
      * @return Map key=深度  value = title对象
      */
-    protected HashMap<Integer, Title> convert2ChainTitle(int currentColIndex) {
+    public HashMap<Integer, Title> convert2ChainTitle(int currentColIndex) {
         this.startColIndex = currentColIndex;
         this.endColIndex = currentColIndex;
 

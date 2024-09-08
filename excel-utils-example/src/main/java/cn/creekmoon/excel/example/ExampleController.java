@@ -7,6 +7,7 @@ import cn.creekmoon.excel.core.R.converter.LocalDateTimeConverter;
 import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.core.W.ExcelExport;
+import cn.creekmoon.excel.core.W.title.TitleWriter;
 import cn.hutool.core.util.RandomUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +39,9 @@ public class ExampleController {
         ArrayList<Student> result = createStudentList(size != null ? size : 60_000);
         ArrayList<Student> result2 = createStudentList(size != null ? size : 10_000);
 
-        ExcelExport.create(Student.class)
+        ExcelExport excelExport = ExcelExport.create();
+        excelExport
+                .switchNewSheet(Student.class)
                 /*第一个标签页*/
                 .addTitle("基本信息::用户名", Student::getUserName)
                 .addTitle("基本信息::全名", Student::getFullName)
@@ -46,9 +49,10 @@ public class ExampleController {
                 .addTitle("邮箱", Student::getEmail)
                 .addTitle("生日", Student::getBirthday)
                 .addTitle("过期时间", Student::getExpTime)
-                .write(result)
-                /*第二个标签页*/
-                .switchSheet(Student.class)
+                .write(result);
+
+        /*第二个标签页*/
+        excelExport.switchNewSheet(Student.class)
                 .addTitle("年龄", Student::getAge)
                 .addTitle("邮箱", Student::getEmail)
                 .addTitle("生日", Student::getBirthday)
@@ -69,8 +73,8 @@ public class ExampleController {
         short dataFormat_double = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0.00");
         short dataFormat_int = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0");
 
-        excelExport
-                .switchSheet("first_sheet", Student.class)
+        TitleWriter<Student> studentTitleWriter = excelExport.switchNewSheet(Student.class);
+        studentTitleWriter
                 .addTitle("用户名", Student::getUserName)
                 .addTitle("全名", Student::getFullName)
                 .setDataStyle(cellStyle ->

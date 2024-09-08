@@ -47,6 +47,7 @@ public class ExcelImport {
 
     /*唯一识别名称 会同步生成一份文件到临时目录*/
     public String taskId = UUID.fastUUID().toString();
+    String resultFilePath = ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId);
 
     /*当前导入的文件*/
     public MultipartFile sourceFile;
@@ -63,8 +64,6 @@ public class ExcelImport {
 
         return excelImport;
     }
-
-
 
 
     /**
@@ -84,9 +83,7 @@ public class ExcelImport {
         }
 
         //新增读取器
-        HutoolTitleReader<T> reader = new HutoolTitleReader<>(this);
-        reader.newObjectSupplier = supplier;
-        reader.sheetIndex = sheetIndex;
+        HutoolTitleReader<T> reader = new HutoolTitleReader<>(this, sheetIndex, supplier);
         this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
         return reader;
     }
@@ -108,9 +105,7 @@ public class ExcelImport {
         }
 
         //新增读取器
-        HutoolCellReader<T> reader = new HutoolCellReader<>(this);
-        reader.newObjectSupplier = supplier;
-        reader.sheetIndex = sheetIndex;
+        HutoolCellReader<T> reader = new HutoolCellReader<>(this, sheetIndex, supplier);
         this.sheetIndex2ReaderBiMap.put(sheetIndex, reader);
         return reader;
     }
@@ -180,7 +175,7 @@ public class ExcelImport {
      */
     public File generateResultFile(boolean autoClean) throws IOException {
 
-        String absoluteFilePath = ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId);
+        String absoluteFilePath = resultFilePath;
 
         try (Workbook workbook = new XSSFWorkbook(sourceFile.getInputStream());
              BufferedOutputStream outputStream = FileUtil.getOutputStream(absoluteFilePath)) {

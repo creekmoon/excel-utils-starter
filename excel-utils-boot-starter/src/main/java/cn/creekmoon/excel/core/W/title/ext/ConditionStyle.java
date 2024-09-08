@@ -8,6 +8,6 @@ import java.util.function.Predicate;
 /*条件样式*/
 @AllArgsConstructor
 public class ConditionStyle<R> {
-    Predicate<R> condition;
-    CellStyle style;
+    public Predicate<R> condition;
+    public CellStyle style;
 }
