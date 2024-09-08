@@ -2,16 +2,15 @@ package cn.creekmoon.excel.core.W;
 
 
 import cn.creekmoon.excel.core.W.title.HutoolTitleWriter;
-import cn.creekmoon.excel.util.ExcelConstants;
 import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.lang.UUID;
-import cn.hutool.poi.excel.BigExcelWriter;
-import cn.hutool.poi.excel.ExcelUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,13 +31,11 @@ public class ExcelExport {
     /*自定义的名称*/
     public String excelName;
 
-    /*写入器 hutoolTitleWriter专用*/
-    public BigExcelWriter bigExcelWriter;
 
     /*
      * sheet页和导出对象的映射关系
      * */
-    public Map<String, HutoolTitleWriter> sheetName2SheetWriter = new HashMap<>();
+    public Map<String, Writer> sheetName2SheetWriter = new HashMap<>();
 
 
     private ExcelExport() {
@@ -52,7 +49,7 @@ public class ExcelExport {
 
     public static ExcelExport create() {
         ExcelExport excelExport = new ExcelExport();
-        excelExport.excelName = ExcelConstants.excelNameGenerator.get();
+        excelExport.excelName = "export_result_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm"));
         return excelExport;
     }
 
@@ -63,7 +60,7 @@ public class ExcelExport {
      * @return
      */
     @NotNull
-    protected static String generateSheetNameByIndex(Integer sheetIndex) {
+    protected static String getDefaultIndexName(Integer sheetIndex) {
         return "Sheet" + (sheetIndex + 1);
     }
 
@@ -91,26 +88,15 @@ public class ExcelExport {
      */
     public <T> HutoolTitleWriter<T> switchSheet(Class<T> newDataClass) {
         int indexSeq = 0;
-        while (sheetName2SheetWriter.containsKey(generateSheetNameByIndex(indexSeq))) {
+        while (sheetName2SheetWriter.containsKey(getDefaultIndexName(indexSeq))) {
             indexSeq++;
         }
-        return switchSheet(generateSheetNameByIndex(indexSeq), newDataClass);
+        return switchSheet(getDefaultIndexName(indexSeq), newDataClass);
     }
 
     public ExcelExport debug() {
         this.debugger = true;
         return this;
-    }
-
-
-    /**
-     * 停止写入
-     *
-     * @return taskId
-     */
-    public String stopWrite() {
-        getBigExcelWriter().close();
-        return taskId;
     }
 
 
@@ -126,17 +112,6 @@ public class ExcelExport {
     }
 
 
-    /**
-     * 内部操作类,但是暴露出来了,希望最好不要用这个方法
-     *
-     * @return
-     */
-    public BigExcelWriter getBigExcelWriter() {
-        if (bigExcelWriter == null) {
-            bigExcelWriter = ExcelUtil.getBigWriter(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId));
-        }
-        return bigExcelWriter;
-    }
 
     /**
      * 写入策略

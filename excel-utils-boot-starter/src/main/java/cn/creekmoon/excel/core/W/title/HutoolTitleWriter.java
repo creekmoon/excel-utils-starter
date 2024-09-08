@@ -1,10 +1,14 @@
 package cn.creekmoon.excel.core.W.title;
 
 import cn.creekmoon.excel.core.W.ExcelExport;
+import cn.creekmoon.excel.core.W.Writer;
+import cn.creekmoon.excel.core.W.title.ext.ConditionStyle;
+import cn.creekmoon.excel.core.W.title.ext.Title;
 import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.BigExcelWriter;
+import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.style.StyleUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +22,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class HutoolTitleWriter<R> {
+public class HutoolTitleWriter<R> extends Writer {
 
 
     protected ExcelExport parent;
@@ -44,7 +48,8 @@ public class HutoolTitleWriter<R> {
 
     /* 多级表头时会用到  深度和标题的映射关系*/
     protected HashMap<Integer, List<Title>> depth2Titles = new HashMap<>();
-
+    /*写入器 hutoolTitleWriter专用*/
+    public BigExcelWriter bigExcelWriter;
 
     /**
      * 当前写入行,切换sheet页时需要还原这个上下文数据
@@ -406,11 +411,6 @@ public class HutoolTitleWriter<R> {
     }
 
 
-    public String stopWrite() throws IOException {
-        return parent.stopWrite();
-
-    }
-
 
     /**
      * 切换到新的标签页
@@ -437,12 +437,6 @@ public class HutoolTitleWriter<R> {
         currentRow = parent.getBigExcelWriter().getCurrentRow();
     }
 
-    /**
-     * 切换到新的标签页
-     */
-    public <T> HutoolTitleWriter<T> switchSheet(Class<T> newDataClass) {
-        return parent.switchSheet(newDataClass);
-    }
 
 
     /**
@@ -454,6 +448,30 @@ public class HutoolTitleWriter<R> {
     public void response(HttpServletResponse response) throws IOException {
         String taskId = parent.stopWrite();
         ExcelFileUtils.response(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId), parent.excelName, response);
+    }
+
+
+    /**
+     * 内部操作类,但是暴露出来了,希望最好不要用这个方法
+     *
+     * @return
+     */
+    public BigExcelWriter getBigExcelWriter() {
+        if (bigExcelWriter == null) {
+            bigExcelWriter = ExcelUtil.getBigWriter(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId));
+        }
+        return bigExcelWriter;
+    }
+
+
+    /**
+     * 停止写入
+     *
+     * @return taskId
+     */
+    public String stopWrite() {
+        getBigExcelWriter().close();
+        return taskId;
     }
 
 }

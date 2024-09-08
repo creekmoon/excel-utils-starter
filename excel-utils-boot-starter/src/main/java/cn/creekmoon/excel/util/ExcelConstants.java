@@ -1,9 +1,5 @@
 package cn.creekmoon.excel.util;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.function.Supplier;
-
 /**
  * Excel常量
  */
@@ -18,5 +14,4 @@ public class ExcelConstants {
 
     public static final String TITLE_CHECK_ERROR = "导入的模板有误,请检查您的文件!";
 
-    public static final Supplier<String> excelNameGenerator = () -> "export_result_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm"));
 }
