@@ -7,15 +7,12 @@ import cn.creekmoon.excel.core.R.converter.LocalDateTimeConverter;
 import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.core.W.ExcelExport;
-import cn.creekmoon.excel.core.W.title.TitleWriter;
 import cn.hutool.core.util.RandomUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.FillPatternType;
-import org.apache.poi.ss.usermodel.IndexedColors;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -64,40 +61,40 @@ public class ExampleController {
     @GetMapping(value = "/exportExcelByStyle")
     @Operation(summary = "导出(并设置style)")
     public void exportExcel5(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        ArrayList<Student> result = createStudentList(60_000);
-        ArrayList<Teacher> result2 = createTeacherList(60_000);
-
-        ExcelExport excelExport = ExcelExport.create();
-
-        /*定义一个全局的数据样式  double是千分号和保留两位小数  int是千分号,保留整数*/
-        short dataFormat_double = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0.00");
-        short dataFormat_int = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0");
-
-        TitleWriter<Student> studentTitleWriter = excelExport.switchNewSheet(Student.class);
-        studentTitleWriter
-                .addTitle("用户名", Student::getUserName)
-                .addTitle("全名", Student::getFullName)
-                .setDataStyle(cellStyle ->
-                {
-                    cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
-                    cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-                })
-                .addTitle("年龄", Student::getAge)
-                .setDataStyle(student -> student.getAge() > 20,
-                        cellStyle ->
-                        {
-                            cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
-                            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-                        }
-                )
-                .setDataStyle(student -> student.getAge() > 20,
-                        cellStyle ->
-                        {
-                            cellStyle.setDataFormat(dataFormat_double);
-                        }
-                )
-                .write(result)
-                .response(response);
+//        ArrayList<Student> result = createStudentList(60_000);
+//        ArrayList<Teacher> result2 = createTeacherList(60_000);
+//
+//        ExcelExport excelExport = ExcelExport.create();
+//
+//        /*定义一个全局的数据样式  double是千分号和保留两位小数  int是千分号,保留整数*/
+//        short dataFormat_double = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0.00");
+//        short dataFormat_int = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0");
+//
+//        TitleWriter<Student> studentTitleWriter = excelExport.switchNewSheet(Student.class);
+//        studentTitleWriter
+//                .addTitle("用户名", Student::getUserName)
+//                .addTitle("全名", Student::getFullName)
+//                .setDataStyle(cellStyle ->
+//                {
+//                    cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+//                    cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+//                })
+//                .addTitle("年龄", Student::getAge)
+//                .setDataStyle(student -> student.getAge() > 20,
+//                        cellStyle ->
+//                        {
+//                            cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+//                            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+//                        }
+//                )
+//                .setDataStyle(student -> student.getAge() > 20,
+//                        cellStyle ->
+//                        {
+//                            cellStyle.setDataFormat(dataFormat_double);
+//                        }
+//                )
+//                .write(result)
+//                .response(response);
     }
 
     /**

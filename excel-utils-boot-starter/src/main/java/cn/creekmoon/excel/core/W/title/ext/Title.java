@@ -15,7 +15,7 @@ public class Title {
 
     public Title parentTitle;
     public String titleName;
-    public Function<Object, String> valueFunction;
+    public Function valueFunction;
     /* 列坐标 开始于第几列  */
     public int startColIndex;
     /* 列坐标 结束于第几列 */
@@ -23,7 +23,7 @@ public class Title {
     /* 父标题分隔符*/
     public String PARENT_TITLE_SEPARATOR = "::";
 
-    public Title(String titleName, Function<Object, String> valueFunction) {
+    public Title(String titleName, Function valueFunction) {
         this.titleName = titleName;
         this.valueFunction = valueFunction;
     }
@@ -32,14 +32,14 @@ public class Title {
 
     }
 
-    public static Title of(String titleName, Function<Object, String> valueFunction) {
+    public static Title of(String titleName, Function valueFunction) {
         Title newTitle = new Title();
         newTitle.titleName = titleName;
         newTitle.valueFunction = valueFunction;
         return newTitle;
     }
 
-    public static Title of(String titleName, Function<Object, String> valueFunction, String parentTitleSeparator) {
+    public static Title of(String titleName, Function valueFunction, String parentTitleSeparator) {
         Title newTitle = new Title();
         newTitle.titleName = titleName;
         newTitle.valueFunction = valueFunction;
@@ -69,7 +69,7 @@ public class Title {
                 int depth = i + 1;
                 if (depth != split.length) {
                     /* 生成父Title */
-                    Title parentTitle = new Title<>();
+                    Title parentTitle = new Title();
                     parentTitle.titleName = split[depth];
                     parentTitle.startColIndex = currentColIndex;
                     parentTitle.endColIndex = currentColIndex;

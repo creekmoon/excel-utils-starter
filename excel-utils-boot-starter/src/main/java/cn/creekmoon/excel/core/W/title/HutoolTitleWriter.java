@@ -11,6 +11,7 @@ import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.style.StyleUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
 import java.io.IOException;
@@ -20,7 +21,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class HutoolTitleWriter<R> extends TitleWriter {
+public class HutoolTitleWriter<R> extends TitleWriter<R> {
 
 
     protected ExcelExport parent;
@@ -50,42 +51,6 @@ public class HutoolTitleWriter<R> extends TitleWriter {
     @Override
     public int countTitles() {
         return titles.size();
-    }
-
-    /**
-     * 为当前列设置一个样式
-     *
-     * @param condition        样式触发的条件
-     * @param styleInitializer 样式初始化器
-     * @return
-     */
-    @Override
-    public HutoolTitleWriter<R> setDataStyle(Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
-        return setDataStyle(titles.size() - 1, condition, styleInitializer);
-    }
-
-    /**
-     * 添加excel样式映射,在写入的时候会读取这个映射
-     *
-     * @param colIndex         对应的列号
-     * @param condition        样式的触发条件
-     * @param styleInitializer 样式的初始化内容
-     * @return
-     */
-    @Override
-    public HutoolTitleWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
-        /*初始化样式*/
-//        CellStyle newCellStyle = getBigExcelWriter().createCellStyle();
-        XSSFCellStyle newCellStyle = (XSSFCellStyle) StyleUtil.createDefaultCellStyle(getBigExcelWriter().getWorkbook());
-        styleInitializer.accept(newCellStyle);
-        ConditionStyle conditionStyle = new ConditionStyle(condition, newCellStyle);
-
-        /*保存映射结果*/
-        if (!colIndex2Styles.containsKey(colIndex)) {
-            colIndex2Styles.put(colIndex, new ArrayList<>());
-        }
-        colIndex2Styles.get(colIndex).add(conditionStyle);
-        return this;
     }
 
 
@@ -207,6 +172,40 @@ public class HutoolTitleWriter<R> extends TitleWriter {
 
 
     /**
+     * 添加excel样式映射,在写入的时候会读取这个映射
+     *
+     * @param colIndex         对应的列号
+     * @param condition        样式的触发条件
+     * @param styleInitializer 样式的初始化内容
+     * @return
+     */
+    public HutoolTitleWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
+        /*初始化样式*/
+//        CellStyle newCellStyle = getBigExcelWriter().createCellStyle();
+        XSSFCellStyle newCellStyle = (XSSFCellStyle) StyleUtil.createDefaultCellStyle(getBigExcelWriter().getWorkbook());
+        styleInitializer.accept(newCellStyle);
+        ConditionStyle conditionStyle = new ConditionStyle(condition, newCellStyle);
+
+        /*保存映射结果*/
+        if (!colIndex2Styles.containsKey(colIndex)) {
+            colIndex2Styles.put(colIndex, new ArrayList<>());
+        }
+        colIndex2Styles.get(colIndex).add(conditionStyle);
+        return this;
+    }
+
+    /**
+     * 为当前列设置一个样式
+     *
+     * @param condition        样式触发的条件
+     * @param styleInitializer 样式初始化器
+     * @return
+     */
+    public TitleWriter<R> setDataStyle(Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
+        return setDataStyle(titles.size() - 1, condition, styleInitializer);
+    }
+
+    /**
      * 初始化标题
      */
     private void initTitles() {
@@ -285,7 +284,7 @@ public class HutoolTitleWriter<R> extends TitleWriter {
 
         /*纵向合并title*/
         for (int colIndex = 0; colIndex < titles.size(); colIndex++) {
-            Title<R> title = titles.get(colIndex);
+            Title title = titles.get(colIndex);
             int sameCount = 0; //重复的数量
             for (Integer depth = 1; depth <= MAX_TITLE_DEPTH; depth++) {
                 if (title.parentTitle != null && title.titleName.equals(title.parentTitle.titleName)) {
@@ -437,6 +436,11 @@ public class HutoolTitleWriter<R> extends TitleWriter {
         return bigExcelWriter;
     }
 
+
+    @Override
+    protected Workbook getWorkbook() {
+        return getBigExcelWriter().getWorkbook();
+    }
 
     @Override
     protected void unsafeOnSwitchSheet() {

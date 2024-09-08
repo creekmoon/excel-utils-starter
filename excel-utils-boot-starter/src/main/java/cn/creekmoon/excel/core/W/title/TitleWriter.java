@@ -3,14 +3,14 @@ package cn.creekmoon.excel.core.W.title;
 import cn.creekmoon.excel.core.W.Writer;
 import cn.creekmoon.excel.core.W.title.ext.ConditionStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
+import cn.hutool.poi.excel.style.StyleUtil;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 public abstract class TitleWriter<R> extends Writer {
 
@@ -18,6 +18,7 @@ public abstract class TitleWriter<R> extends Writer {
      * 表头集合
      */
     protected List<Title> titles = new ArrayList<>();
+
     /**
      * 表头集合
      */
@@ -38,18 +39,38 @@ public abstract class TitleWriter<R> extends Writer {
     /**
      * 添加标题
      */
-    public TitleWriter<R> addTitle(String titleName, Function<Object, String> valueFunction) {
+    public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction) {
         titles.add(Title.of(titleName, valueFunction));
         return this;
     }
 
     public abstract int countTitles();
 
-    public abstract HutoolTitleWriter setDataStyle(int colIndex, Predicate condition, Consumer<XSSFCellStyle> styleInitializer);
 
-    public abstract HutoolTitleWriter setDataStyle(Consumer<XSSFCellStyle> styleInitializer);
+    public abstract HutoolTitleWriter<R> write(List<R> data);
 
-    public abstract HutoolTitleWriter write(List data);
+    protected void unsafeInit() {
+        Workbook workbook = getWorkbook();
+        /*初始化样式*/
+//        CellStyle newCellStyle = getBigExcelWriter().createCellStyle();
+        XSSFCellStyle newCellStyle = (XSSFCellStyle) StyleUtil.createDefaultCellStyle(workbook);
+        styleInitializer.accept(newCellStyle);
+        ConditionStyle conditionStyle = new ConditionStyle(condition, newCellStyle);
 
-    public abstract HutoolTitleWriter setDataStyle(Predicate condition, Consumer<XSSFCellStyle> styleInitializer);
+        /*保存映射结果*/
+        if (!colIndex2Styles.containsKey(colIndex)) {
+            colIndex2Styles.put(colIndex, new ArrayList<>());
+        }
+        colIndex2Styles.get(colIndex).add(conditionStyle);
+    }
+
+
+    public static class DefaultStyles {
+
+        DefaultStyles(Workbook workbook) {
+
+        }
+
+        public static final String
+    }
 }
