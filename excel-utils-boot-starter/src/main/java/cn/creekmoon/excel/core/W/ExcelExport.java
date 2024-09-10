@@ -10,11 +10,16 @@ import cn.hutool.core.text.StrFormatter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.IndexedColors;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * @author JY
@@ -37,6 +42,8 @@ public class ExcelExport {
     /*自定义的名称*/
     public String excelName;
 
+    /* key=内置的样式风格   value=当前运行时对象里生成的实际样式*/
+    public Map<PresetCellStyle, CellStyle> cellStyle2RunningTimeStyleObject;
 
     /*
      * sheet页和导出对象的映射关系
@@ -117,4 +124,22 @@ public class ExcelExport {
         STOP_ON_ERROR;
     }
 
+
+
+    public enum PresetCellStyle {
+        LIGHT_ORANGE(   cellStyle ->
+                        {
+                            cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+                            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                        });
+
+
+        private Consumer<CellStyle> styleInitializer;
+
+        private PresetCellStyle(Consumer<CellStyle> styleInitializer){
+            this.styleInitializer = styleInitializer;
+        }
+
+
+    }
 }

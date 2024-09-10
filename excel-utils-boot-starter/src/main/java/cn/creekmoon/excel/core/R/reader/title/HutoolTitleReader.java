@@ -11,11 +11,15 @@ import cn.creekmoon.excel.util.exception.ExFunction;
 import cn.creekmoon.excel.util.exception.GlobalExceptionMsgManager;
 import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.poi.excel.ExcelFileUtil;
 import cn.hutool.poi.excel.sax.Excel07SaxReader;
+import cn.hutool.poi.excel.sax.ExcelSaxReader;
+import cn.hutool.poi.excel.sax.ExcelSaxUtil;
 import cn.hutool.poi.excel.sax.handler.RowHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,7 +48,7 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
     @Override
     public Long getSheetRowCount() {
         AtomicLong result = new AtomicLong(0);
-        Excel07SaxReader excel07SaxReader = new Excel07SaxReader(new RowHandler() {
+        ExcelSaxReader<?> excel07SaxReader = ExcelSaxUtil.createSaxReader(ExcelFileUtil.isXlsx(getParent().sourceFile.getInputStream()), (new RowHandler() {
             @Override
             public void handle(int sheetIndex, long rowIndex, List<Object> rowCells) {
                 if (sheetIndex != HutoolTitleReader.super.sheetIndex) {
@@ -52,7 +56,7 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
                 }
                 result.incrementAndGet();
             }
-        });
+        }));
         try {
             excel07SaxReader.read(getParent().sourceFile.getInputStream(), -1);
         } catch (Exception e) {
@@ -135,20 +139,21 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
     public TitleReaderResult<R> read() {
         /*尝试拿锁*/
         ExcelUtilsConfig.importParallelSemaphore.acquire();
-        ((TitleReaderResult) getReadResult()).readStartTime = LocalDateTime.now();
+        getReadResult().readStartTime = LocalDateTime.now();
         try {
             //新版读取 使用SAX读取模式
-            Excel07SaxReader excel07SaxReader = initSaxReader();
+
+            ExcelSaxReader saxReader = initSaxReader();
             /*第一个参数 文件流  第二个参数 -1就是读取所有的sheet页*/
-            excel07SaxReader.read(this.getParent().sourceFile.getInputStream(), -1);
+            saxReader.read(this.getParent().sourceFile.getInputStream(), -1);
         } catch (Exception e) {
             log.error("SaxReader读取Excel文件异常", e);
         } finally {
-            ((TitleReaderResult) getReadResult()).readSuccessTime = LocalDateTime.now();
+            getReadResult().readSuccessTime = LocalDateTime.now();
             /*释放信号量*/
             ExcelUtilsConfig.importParallelSemaphore.release();
         }
-        return (TitleReaderResult<R>) getReadResult();
+        return getReadResult();
     }
 
 
@@ -251,13 +256,14 @@ public class HutoolTitleReader<R> extends TitleReader<R> {
      * @param
      * @return
      */
-    Excel07SaxReader initSaxReader() {
+
+    ExcelSaxReader initSaxReader() throws IOException {
 
         int targetSheetIndex = super.sheetIndex;
         TitleReaderResult titleReaderResult = (TitleReaderResult) getReadResult();
 
         /*返回一个Sax读取器*/
-        return new Excel07SaxReader(new RowHandler() {
+        return  ExcelSaxUtil.createSaxReader(ExcelFileUtil.isXlsx(getParent().sourceFile.getInputStream()),new RowHandler() {
 
             @Override
             public void doAfterAllAnalysed() {

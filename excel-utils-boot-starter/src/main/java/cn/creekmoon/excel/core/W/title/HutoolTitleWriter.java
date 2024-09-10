@@ -11,8 +11,8 @@ import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.style.StyleUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
 import java.io.IOException;
 import java.util.*;
@@ -53,17 +53,6 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
         return titles.size();
     }
 
-
-    /**
-     * 为当前列的数据设置一个样式
-     *
-     * @param styleInitializer 样式初始化器
-     * @return
-     */
-    @Override
-    public HutoolTitleWriter<R> setDataStyle(Consumer<XSSFCellStyle> styleInitializer) {
-        return this.setDataStyle(x -> true, styleInitializer);
-    }
 
     /**
      * 写入对象
@@ -163,7 +152,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
                 for (ConditionStyle conditionStyle : styleList) {
                     if (conditionStyle.condition.test(vo)) {
                         /*写回样式*/
-                        getBigExcelWriter().setStyle(conditionStyle.style, colIndex, startRowIndex + i);
+                        getBigExcelWriter().setStyle(conditionStyle.runningTimeStyle, colIndex, startRowIndex + i);
                     }
                 }
             }
@@ -179,10 +168,10 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @param styleInitializer 样式的初始化内容
      * @return
      */
-    public HutoolTitleWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
+    public HutoolTitleWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<CellStyle> styleInitializer) {
         /*初始化样式*/
 //        CellStyle newCellStyle = getBigExcelWriter().createCellStyle();
-        XSSFCellStyle newCellStyle = (XSSFCellStyle) StyleUtil.createDefaultCellStyle(getBigExcelWriter().getWorkbook());
+        CellStyle newCellStyle = StyleUtil.createDefaultCellStyle(getWorkbook());
         styleInitializer.accept(newCellStyle);
         ConditionStyle conditionStyle = new ConditionStyle(condition, newCellStyle);
 
@@ -201,7 +190,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @param styleInitializer 样式初始化器
      * @return
      */
-    public TitleWriter<R> setDataStyle(Predicate<R> condition, Consumer<XSSFCellStyle> styleInitializer) {
+    public TitleWriter<R> setDataStyle(Predicate<R> condition, Consumer<CellStyle> styleInitializer) {
         return setDataStyle(titles.size() - 1, condition, styleInitializer);
     }
 

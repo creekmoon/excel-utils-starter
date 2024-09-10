@@ -8,6 +8,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
@@ -40,9 +41,20 @@ public abstract class TitleWriter<R> extends Writer {
      * 添加标题
      */
     public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction) {
+        return addTitle(titleName, valueFunction, (ConditionStyle<R>) null);
+    }
+
+    /**
+     * 添加标题
+     */
+    public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction, ConditionStyle<R>... conditionStyle) {
         titles.add(Title.of(titleName, valueFunction));
+        if (conditionStyle != null && conditionStyle.length > 0) {
+            colIndex2Styles.put(titles.size() - 1, Arrays.asList(conditionStyle));
+        }
         return this;
     }
+
 
     public abstract int countTitles();
 
@@ -64,13 +76,4 @@ public abstract class TitleWriter<R> extends Writer {
         colIndex2Styles.get(colIndex).add(conditionStyle);
     }
 
-
-    public static class DefaultStyles {
-
-        DefaultStyles(Workbook workbook) {
-
-        }
-
-        public static final String
-    }
 }
