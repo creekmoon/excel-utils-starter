@@ -13,12 +13,26 @@ public abstract class Writer {
 
 
     /**
-     * 声明周期钩子函数, 当切换sheet页时
+     * 声明周期钩子函数, 当写入数据时
      */
-    abstract protected void unsafeOnSwitchSheet();
+    protected void unsafeOnWrite() {
+    }
+
+    ;
 
     /**
      * 声明周期钩子函数, 当切换sheet页时
      */
-    abstract protected void unsafeOnStopWrite();
+    protected void unsafeOnSwitchSheet() {
+    }
+
+    ;
+
+    /**
+     * 声明周期钩子函数, 当切换sheet页时
+     */
+    protected void unsafeOnStopWrite() {
+    }
+
+    ;
 }

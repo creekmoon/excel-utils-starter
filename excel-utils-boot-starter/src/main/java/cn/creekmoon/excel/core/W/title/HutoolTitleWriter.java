@@ -152,7 +152,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
                 for (ConditionStyle conditionStyle : styleList) {
                     if (conditionStyle.condition.test(vo)) {
                         /*写回样式*/
-                        getBigExcelWriter().setStyle(conditionStyle.runningTimeStyle, colIndex, startRowIndex + i);
+                        getBigExcelWriter().setStyle(parent.cellStyle2RunningTimeStyleObject.get(conditionStyle), colIndex, startRowIndex + i);
                     }
                 }
             }
