@@ -1,7 +1,7 @@
 package cn.creekmoon.excel.core.W.title;
 
 import cn.creekmoon.excel.core.W.Writer;
-import cn.creekmoon.excel.core.W.title.ext.ConditionStyle;
+import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
 import cn.hutool.poi.excel.style.StyleUtil;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -20,10 +20,6 @@ public abstract class TitleWriter<R> extends Writer {
      */
     protected List<Title> titles = new ArrayList<>();
 
-    /**
-     * 表头集合
-     */
-    protected HashMap<Integer, List<ConditionStyle>> colIndex2Styles = new HashMap<>();
 
     /* 多级表头时会用到 全局标题深度  initTitle方法会给其赋值
      *
@@ -41,17 +37,14 @@ public abstract class TitleWriter<R> extends Writer {
      * 添加标题
      */
     public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction) {
-        return addTitle(titleName, valueFunction, (ConditionStyle<R>) null);
+        return addTitle(titleName, valueFunction, (ConditionCellStyle<R>) null);
     }
 
     /**
      * 添加标题
      */
-    public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction, ConditionStyle<R>... conditionStyle) {
-        titles.add(Title.of(titleName, valueFunction));
-        if (conditionStyle != null && conditionStyle.length > 0) {
-            colIndex2Styles.put(titles.size() - 1, Arrays.asList(conditionStyle));
-        }
+    public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction, ConditionCellStyle<R>... conditionStyle) {
+        titles.add(Title.of(titleName, valueFunction,conditionStyle));
         return this;
     }
 
@@ -61,19 +54,5 @@ public abstract class TitleWriter<R> extends Writer {
 
     public abstract HutoolTitleWriter<R> write(List<R> data);
 
-    protected void unsafeInit() {
-        Workbook workbook = getWorkbook();
-        /*初始化样式*/
-//        CellStyle newCellStyle = getBigExcelWriter().createCellStyle();
-        XSSFCellStyle newCellStyle = (XSSFCellStyle) StyleUtil.createDefaultCellStyle(workbook);
-        styleInitializer.accept(newCellStyle);
-        ConditionStyle conditionStyle = new ConditionStyle(condition, newCellStyle);
-
-        /*保存映射结果*/
-        if (!colIndex2Styles.containsKey(colIndex)) {
-            colIndex2Styles.put(colIndex, new ArrayList<>());
-        }
-        colIndex2Styles.get(colIndex).add(conditionStyle);
-    }
 
 }

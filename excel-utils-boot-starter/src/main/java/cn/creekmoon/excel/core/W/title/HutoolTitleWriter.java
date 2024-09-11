@@ -1,7 +1,8 @@
 package cn.creekmoon.excel.core.W.title;
 
 import cn.creekmoon.excel.core.W.ExcelExport;
-import cn.creekmoon.excel.core.W.title.ext.ConditionStyle;
+import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
+import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
 import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.collection.ListUtil;
@@ -13,11 +14,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -43,8 +43,6 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
     }
 
 
-
-
     /**
      * 获取当前的表头数量
      */
@@ -55,109 +53,118 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
 
 
     /**
-     * 写入对象
+     * 以对象形式写入
      *
-     * @param data
+     * @param targetDataList 数据集
      * @return
      */
     @Override
-    public HutoolTitleWriter<R> write(List<R> data) {
-        return write(data, ExcelExport.WriteStrategy.CONTINUE_ON_ERROR);
-    }
-
-
-    /**
-     * 以map形式写入
-     *
-     * @param data key=标题 value=行内容
-     * @return
-     */
-    protected HutoolTitleWriter<R> writeByMap(List<Map<String, Object>> data) {
-        preWritingContextAdjust();
-        getBigExcelWriter().write(data);
-        postWritingContextAdjust();
-        return this;
-    }
-
-    /**
-     * 以对象形式写入
-     *
-     * @param vos           数据集
-     * @param writeStrategy 写入策略
-     * @return
-     */
-    private HutoolTitleWriter<R> write(List<R> vos, ExcelExport.WriteStrategy writeStrategy) {
-        preWritingContextAdjust();
-
+    public HutoolTitleWriter<R> write(List<R> targetDataList) {
+        getBigExcelWriter().setSheet(sheetName);
+        getBigExcelWriter().setCurrentRow(currentRow);
         this.initTitles();
-        List<List<Object>> rows =
-                vos.stream()
-                        .map(
-                                vo -> {
-                                    List<Object> row = new LinkedList<>();
-                                    for (Title title : titles) {
-                                        //当前行中的某个属性值
-                                        Object data = null;
-                                        try {
-                                            data = title.valueFunction.apply(vo);
-                                        } catch (Exception exception) {
-                                            if (writeStrategy == ExcelExport.WriteStrategy.CONTINUE_ON_ERROR) {
-                                                // nothing to do
-                                                if (parent.debugger) {
-                                                    log.info("[Excel构建]生成Excel获取数据值时发生错误!已经忽略错误并设置为NULL值!", exception);
-                                                }
-                                            }
-                                            if (writeStrategy == ExcelExport.WriteStrategy.STOP_ON_ERROR) {
-                                                ExcelFileUtils.cleanTempFileByPathDelay(parent.getResultFilePath(), 10);
-                                                log.error("[Excel构建]生成Excel获取数据值时发生错误!", exception);
-                                                throw new RuntimeException("生成Excel获取数据值时发生错误!");
-                                            }
-                                        }
-                                        row.add(data);
-                                    }
-                                    return row;
-                                })
-                        .collect(Collectors.toList());
+//        List<List<Object>> rows =
+//                targetDataList.stream()
+//                        .map(this::changeToCellValues)
+//                        .collect(Collectors.toList());
 
-        /*一口气写入, 让内部组件自己自动分批写到磁盘  区别是这样就不能设置style了*/
-        //getBigExcelWriter().write(rows);
 
-        /*将传入过来的rows按每批100次进行写入到硬盘 此时可以设置style, 底层不会报"已经写入磁盘无法编辑"的异常*/
-        List<List<R>> subVos = ListUtil.partition(vos, BigExcelWriter.DEFAULT_WINDOW_SIZE);
-        List<List<List<Object>>> subRows = ListUtil.partition(rows, BigExcelWriter.DEFAULT_WINDOW_SIZE);
-        for (int i = 0; i < subRows.size(); i++) {
+        /* 分批写,数量上限等于滑动窗口值*/
+        List<List<R>> splitDataList = ListUtil.partition(targetDataList, BigExcelWriter.DEFAULT_WINDOW_SIZE);
+        for (int i = 0; i < splitDataList.size(); i++) {
             int startRowIndex = getBigExcelWriter().getCurrentRow();
-            getBigExcelWriter().write(subRows.get(i));
+            getBigExcelWriter().write(splitDataList.get(i).stream().map(this::changeToCellValues).toList());
             int endRowIndex = getBigExcelWriter().getCurrentRow();
-            setDataStyle(subVos.get(i), startRowIndex, endRowIndex);
-        }
+            currentRow = getBigExcelWriter().getCurrentRow();
+//            applyConditionStyle(splitDataList.get(i), startRowIndex, endRowIndex);
 
-        postWritingContextAdjust();
-        return this;
-    }
-
-
-    /**
-     * 给excel设置样式
-     *
-     * @param vos
-     * @param startRowIndex
-     * @param endRowIndex
-     */
-    private void setDataStyle(List<R> vos, int startRowIndex, int endRowIndex) {
-        for (int i = 0; i < vos.size(); i++) {
-            R vo = vos.get(i);
-            for (int colIndex = 0; colIndex < titles.size(); colIndex++) {
-                List<ConditionStyle> styleList = colIndex2Styles.getOrDefault(colIndex, Collections.EMPTY_LIST);
-                for (ConditionStyle conditionStyle : styleList) {
-                    if (conditionStyle.condition.test(vo)) {
-                        /*写回样式*/
-                        getBigExcelWriter().setStyle(parent.cellStyle2RunningTimeStyleObject.get(conditionStyle), colIndex, startRowIndex + i);
+            /*写单元格样式*/
+            for (int k = 0; k < endRowIndex - startRowIndex; k++) {
+                for (int colIndex = 0; colIndex < titles.size(); colIndex++) {
+                    /*写回样式*/
+                    int finalI = i;
+                    int finalK = k;
+                    CellStyle runningTimeCellStyle = titles.get(colIndex)
+                            .conditionCellStyleList
+                            .stream()
+                            .filter(Objects::nonNull)
+                            .filter(x -> x.getCondition().test(splitDataList.get(finalI).get(finalK)))
+                            .map(ConditionCellStyle::getDefaultCellStyle)
+                            .map(this::getRunningTimeCellStyle)
+                            .findAny()
+                            .orElse(null);
+                    if (runningTimeCellStyle == null) {
+                        continue;
                     }
+                    getBigExcelWriter().setStyle(runningTimeCellStyle, colIndex, startRowIndex++);
                 }
             }
+
+
         }
+
+        /*将传入过来的rows按每批100次进行写入到硬盘 此时可以设置style, 底层不会报"已经写入磁盘无法编辑"的异常*/
+//        List<List<R>> splitObjects = ListUtil.partition(targetDataList, BigExcelWriter.DEFAULT_WINDOW_SIZE);
+//        List<List<List<Object>>> splitRows = ListUtil.partition(rows, BigExcelWriter.DEFAULT_WINDOW_SIZE);
+//        for (int i = 0; i < splitRows.size(); i++) {
+//            int startRowIndex = getBigExcelWriter().getCurrentRow();
+//            getBigExcelWriter().write(splitRows.get(i));
+//            int endRowIndex = getBigExcelWriter().getCurrentRow();
+//            applyConditionStyle(splitObjects.get(i), startRowIndex, endRowIndex);
+//        }
+
+
+        return this;
     }
+
+
+    /**
+     * 将对象转化为List<Object>形式, 每个下标对应一列
+     *
+     * @param dataObject
+     * @return
+     */
+    @NotNull
+    private List<Object> changeToCellValues(R dataObject) {
+        List<Object> row = new LinkedList<>();
+        for (Title title : titles) {
+            //当前行中的某个属性值
+            Object data = null;
+            try {
+                data = title.valueFunction.apply(dataObject);
+            } catch (Exception exception) {
+                // nothing to do
+                if (parent.debugger) {
+                    log.info("[Excel构建]生成Excel获取数据值时发生错误!已经忽略错误并设置为NULL值!", exception);
+                }
+            }
+            row.add(data);
+        }
+        return row;
+    }
+
+
+//    /**
+//     * 应用预设的条件样式
+//     *
+//     * @param vos
+//     * @param startRowIndex
+//     * @param endRowIndex
+//     */
+//    private void applyConditionStyle(List<R> vos, int startRowIndex, int endRowIndex) {
+//        for (int i = 0; i < vos.size(); i++) {
+//            R vo = vos.get(i);
+//            for (int colIndex = 0; colIndex < titles.size(); colIndex++) {
+//                List<ConditionCellStyle> styleList = colIndex2Styles.getOrDefault(colIndex, Collections.EMPTY_LIST);
+//                for (ConditionCellStyle conditionStyle : styleList) {
+//                    if (conditionStyle.condition.test(vo)) {
+//                        /*写回样式*/
+//                        getBigExcelWriter().setStyle(parent.cellStyle2RunningTimeStyleObject.get(conditionStyle), colIndex, startRowIndex + i);
+//                    }
+//                }
+//            }
+//        }
+//    }
 
 
     /**
@@ -168,20 +175,20 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @param styleInitializer 样式的初始化内容
      * @return
      */
-    public HutoolTitleWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<CellStyle> styleInitializer) {
-        /*初始化样式*/
-//        CellStyle newCellStyle = getBigExcelWriter().createCellStyle();
-        CellStyle newCellStyle = StyleUtil.createDefaultCellStyle(getWorkbook());
-        styleInitializer.accept(newCellStyle);
-        ConditionStyle conditionStyle = new ConditionStyle(condition, newCellStyle);
-
-        /*保存映射结果*/
-        if (!colIndex2Styles.containsKey(colIndex)) {
-            colIndex2Styles.put(colIndex, new ArrayList<>());
-        }
-        colIndex2Styles.get(colIndex).add(conditionStyle);
-        return this;
-    }
+//    public HutoolTitleWriter<R> setDataStyle(int colIndex, Predicate<R> condition, Consumer<CellStyle> styleInitializer) {
+//        /*初始化样式*/
+////        CellStyle newCellStyle = getBigExcelWriter().createCellStyle();
+//        CellStyle newCellStyle = StyleUtil.createDefaultCellStyle(getWorkbook());
+//        styleInitializer.accept(newCellStyle);
+//        ConditionCellStyle conditionStyle = new ConditionCellStyle(condition, newCellStyle);
+//
+//        /*保存映射结果*/
+//        if (!colIndex2Styles.containsKey(colIndex)) {
+//            colIndex2Styles.put(colIndex, new ArrayList<>());
+//        }
+//        colIndex2Styles.get(colIndex).add(conditionStyle);
+//        return this;
+//    }
 
     /**
      * 为当前列设置一个样式
@@ -190,9 +197,9 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @param styleInitializer 样式初始化器
      * @return
      */
-    public TitleWriter<R> setDataStyle(Predicate<R> condition, Consumer<CellStyle> styleInitializer) {
-        return setDataStyle(titles.size() - 1, condition, styleInitializer);
-    }
+//    public TitleWriter<R> setDataStyle(Predicate<R> condition, Consumer<CellStyle> styleInitializer) {
+//        return setDataStyle(titles.size() - 1, condition, styleInitializer);
+//    }
 
     /**
      * 初始化标题
@@ -378,23 +385,6 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
     }
 
 
-    /**
-     * 写前上下文调整
-     */
-    public void preWritingContextAdjust() {
-        if (getBigExcelWriter().getSheet().getSheetName().equals(sheetName)) {
-            return;
-        }
-        getBigExcelWriter().setSheet(sheetName);
-        getBigExcelWriter().setCurrentRow(currentRow);
-    }
-
-    /**
-     * 写后上下文调整
-     */
-    public void postWritingContextAdjust() {
-        currentRow = getBigExcelWriter().getCurrentRow();
-    }
 
 
     /**
@@ -404,8 +394,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @throws IOException
      */
     public void response(HttpServletResponse response) throws IOException {
-        String taskId = parent.stopWrite();
-        ExcelFileUtils.response(ExcelFileUtils.generateXlsxAbsoluteFilePath(taskId), parent.excelName, response);
+        ExcelFileUtils.response(parent.stopWrite(), parent.excelName, response);
     }
 
 
@@ -431,6 +420,26 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
         return getBigExcelWriter().getWorkbook();
     }
 
+
+    /**
+     * 通过内置的样式换取为当前工作簿里面的样式
+     *
+     * @param style
+     * @return
+     */
+    @Override
+    protected CellStyle getRunningTimeCellStyle(DefaultCellStyle style) {
+        Object cached = parent.metadatas.get(style);
+        if (cached != null) {
+            return (CellStyle) cached;
+        }
+        CellStyle newCellStyle = StyleUtil.createDefaultCellStyle(getWorkbook());
+        style.getStyleInitializer().accept(newCellStyle);
+        parent.metadatas.put(style, newCellStyle);
+        return newCellStyle;
+    }
+
+
     @Override
     protected void unsafeOnSwitchSheet() {
         getBigExcelWriter().setSheet(sheetIndex);
@@ -438,6 +447,10 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
 
     @Override
     protected void unsafeOnStopWrite() {
-        getBigExcelWriter().close();
+        if (!parent.metadatas.containsKey("CLOSED")) {
+            getBigExcelWriter().close();
+            parent.metadatas.put("CLOSED", null);
+        }
+
     }
 }

@@ -39,12 +39,8 @@ public class ExcelExport {
     /*自定义的名称*/
     public String excelName;
 
-
-    /* key=内置的样式风格   value=当前运行时对象里生成的实际样式
-     *
-     *   这里由各个 writer进行动态维护,他们应该在合适的时机将样式加进来
-     **/
-    public Map<PresetCellStyle, CellStyle> cellStyle2RunningTimeStyleObject;
+    /*共享缓存, 自己想存点啥就放里面*/
+    public HashMap<Object,Object> metadatas = new HashMap<>();
 
 
     /*
@@ -60,7 +56,7 @@ public class ExcelExport {
 
     public static ExcelExport create() {
         ExcelExport excelExport = new ExcelExport();
-        excelExport.excelName = "export_result_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm"));
+        excelExport.excelName = "export_result_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm"))+".xlsx";
         return excelExport;
     }
 
@@ -116,15 +112,6 @@ public class ExcelExport {
     }
 
 
-    /**
-     * 写入策略
-     */
-    public enum WriteStrategy {
-        /*忽略取值异常 通常是多级属性空指针造成的 如果取不到值直接置为NULL*/
-        CONTINUE_ON_ERROR,
-        /*遇到任何失败的情况则停止*/
-        STOP_ON_ERROR;
-    }
 
 
 

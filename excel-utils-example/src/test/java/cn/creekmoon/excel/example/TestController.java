@@ -25,7 +25,8 @@ public class TestController {
     @Operation(summary = "导出")
     public void exportExcel(Integer size, HttpServletRequest request, HttpServletResponse response) throws IOException {
         /*查询数据*/
-        ExcelExport.create(Student.class)
+        ExcelExport.create()
+                .switchNewSheet(Student.class)
                 .addTitle("年龄", Student::getAge)
                 .addTitle("邮箱", Student::getEmail)
                 .write(createStudentList(size != null ? size : 60_000))

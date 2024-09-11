@@ -2,7 +2,10 @@ package cn.creekmoon.excel.core.W.title.ext;
 
 import cn.hutool.core.util.ArrayUtil;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -22,30 +25,25 @@ public class Title {
     public int endColIndex;
     /* 父标题分隔符*/
     public String PARENT_TITLE_SEPARATOR = "::";
+    /* 携带的单元格样式 */
+    public List<ConditionCellStyle> conditionCellStyleList = new ArrayList<>();
 
-    public Title(String titleName, Function valueFunction) {
-        this.titleName = titleName;
-        this.valueFunction = valueFunction;
-    }
 
     private Title() {
 
     }
 
-    public static Title of(String titleName, Function valueFunction) {
+
+    public static Title of(String titleName, Function valueFunction, ConditionCellStyle... conditionCellStyles) {
         Title newTitle = new Title();
         newTitle.titleName = titleName;
         newTitle.valueFunction = valueFunction;
+        if (conditionCellStyles != null && conditionCellStyles.length > 0) {
+            newTitle.conditionCellStyleList.addAll(Arrays.asList(conditionCellStyles));
+        }
         return newTitle;
     }
 
-    public static Title of(String titleName, Function valueFunction, String parentTitleSeparator) {
-        Title newTitle = new Title();
-        newTitle.titleName = titleName;
-        newTitle.valueFunction = valueFunction;
-        newTitle.PARENT_TITLE_SEPARATOR = parentTitleSeparator;
-        return newTitle;
-    }
 
     /**
      * (如果可以)将Title转换成链表  并返回一个深度集合   每个Title指向一个parentTitle

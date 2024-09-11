@@ -1,6 +1,9 @@
 package cn.creekmoon.excel.core.W;
 
+import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
+import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
 import lombok.Getter;
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
 
 public abstract class Writer {
@@ -10,6 +13,12 @@ public abstract class Writer {
 
 
     abstract protected Workbook getWorkbook();
+
+
+    /**
+     * 获取运行时的样式对象
+     */
+    abstract protected CellStyle getRunningTimeCellStyle(DefaultCellStyle style);
 
 
     /**
