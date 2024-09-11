@@ -7,6 +7,7 @@ import cn.creekmoon.excel.core.R.converter.LocalDateTimeConverter;
 import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.core.W.ExcelExport;
+import cn.creekmoon.excel.core.W.title.TitleWriter;
 import cn.hutool.core.util.RandomUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,10 +38,9 @@ public class ExampleController {
         ArrayList<Student> result2 = createStudentList(size != null ? size : 10_000);
 
         ExcelExport excelExport = ExcelExport.create();
-        excelExport
-                .switchNewSheet(Student.class)
-                /*第一个标签页*/
-                .addTitle("基本信息::用户名", Student::getUserName)
+        TitleWriter<Student> sheet0 = excelExport.switchNewSheet(Student.class);
+        /*第一个标签页*/
+        sheet0.addTitle("基本信息::用户名", Student::getUserName)
                 .addTitle("基本信息::全名", Student::getFullName)
                 .addTitle("年龄", Student::getAge)
                 .addTitle("邮箱", Student::getEmail)

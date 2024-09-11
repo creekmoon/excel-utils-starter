@@ -40,6 +40,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
     public HutoolTitleWriter(ExcelExport parent, Integer sheetIndex) {
         this.parent = parent;
         this.sheetIndex = sheetIndex;
+        this.sheetName = "Sheet" + sheetIndex;
     }
 
 
@@ -61,7 +62,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
     @Override
     public HutoolTitleWriter<R> write(List<R> targetDataList) {
         getBigExcelWriter().setSheet(sheetName);
-        getBigExcelWriter().setCurrentRow(currentRow);
+        getBigExcelWriter().setCurrentRowToEnd();
         this.initTitles();
 //        List<List<Object>> rows =
 //                targetDataList.stream()
