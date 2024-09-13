@@ -10,8 +10,13 @@ public class ConditionCellStyle<R> {
     protected Predicate<R> condition;
     protected DefaultCellStyle defaultCellStyle;
 
-    ConditionCellStyle(DefaultCellStyle defaultCellStyle, Predicate<R> condition){
+    ConditionCellStyle(DefaultCellStyle defaultCellStyle, Predicate<R> condition) {
         this.defaultCellStyle = defaultCellStyle;
         this.condition = condition;
+    }
+
+
+    public static <T> ConditionCellStyle<T> of(DefaultCellStyle defaultCellStyle, Predicate<T> condition) {
+        return new ConditionCellStyle<T>(defaultCellStyle, condition);
     }
 }

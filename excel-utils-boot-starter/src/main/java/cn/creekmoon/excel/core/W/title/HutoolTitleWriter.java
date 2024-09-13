@@ -4,8 +4,10 @@ import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
+import cn.creekmoon.excel.util.ExcelCellUtils;
 import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.collection.ListUtil;
+import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.BigExcelWriter;
 import cn.hutool.poi.excel.ExcelUtil;
@@ -14,6 +16,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -97,7 +100,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
                     if (runningTimeCellStyle == null) {
                         continue;
                     }
-                    getBigExcelWriter().setStyle(runningTimeCellStyle, colIndex, startRowIndex++);
+                    getBigExcelWriter().setStyle(runningTimeCellStyle, colIndex, k+startRowIndex);
                 }
             }
 

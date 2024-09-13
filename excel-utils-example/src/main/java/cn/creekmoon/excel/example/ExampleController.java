@@ -8,6 +8,8 @@ import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.core.W.title.TitleWriter;
+import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
+import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
 import cn.hutool.core.util.RandomUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +26,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 
+import static cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle.of;
+import static cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle.*;
+
 @Tag(name = "测试API")
 @RestController
 @Slf4j
@@ -36,13 +41,14 @@ public class ExampleController {
         /*查询数据*/
         ArrayList<Student> result = createStudentList(size != null ? size : 60_000);
         ArrayList<Student> result2 = createStudentList(size != null ? size : 10_000);
-
         ExcelExport excelExport = ExcelExport.create();
         TitleWriter<Student> sheet0 = excelExport.switchNewSheet(Student.class);
         /*第一个标签页*/
         sheet0.addTitle("基本信息::用户名", Student::getUserName)
-                .addTitle("基本信息::全名", Student::getFullName)
-                .addTitle("年龄", Student::getAge)
+                .addTitle("基本信息::全名", Student::getFullName,
+                        of(LIGHT_ORANGE, x -> true))
+                .addTitle("年龄", Student::getAge,
+                        of(ROYAL_BLUE, x -> x.getAge() > 10))
                 .addTitle("邮箱", Student::getEmail)
                 .addTitle("生日", Student::getBirthday)
                 .addTitle("过期时间", Student::getExpTime)

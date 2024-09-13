@@ -7,10 +7,16 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 
 import java.util.function.Consumer;
 
-public enum DefaultCellStyle {
-    LIGHT_ORANGE(cellStyle ->
+public  class DefaultCellStyle {
+    public final static DefaultCellStyle LIGHT_ORANGE = new DefaultCellStyle(cellStyle ->
     {
         cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
+        cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+    });
+
+    public final static DefaultCellStyle ROYAL_BLUE = new DefaultCellStyle(cellStyle ->
+    {
+        cellStyle.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
         cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
     });
 

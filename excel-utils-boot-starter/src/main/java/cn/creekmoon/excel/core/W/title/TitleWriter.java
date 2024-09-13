@@ -40,7 +40,7 @@ public abstract class TitleWriter<R> extends Writer {
      * 添加标题
      */
     public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction) {
-        return addTitle(titleName, valueFunction, (ConditionCellStyle<R>) null);
+        return addTitle(titleName, valueFunction, (ConditionCellStyle) null);
     }
 
     /**
