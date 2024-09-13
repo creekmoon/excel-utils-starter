@@ -8,7 +8,6 @@ import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.core.W.title.TitleWriter;
-import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
 import cn.hutool.core.util.RandomUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,8 +46,7 @@ public class ExampleController {
         sheet0.addTitle("基本信息::用户名", Student::getUserName)
                 .addTitle("基本信息::全名", Student::getFullName,
                         of(LIGHT_ORANGE, x -> true))
-                .addTitle("年龄", Student::getAge,
-                        of(ROYAL_BLUE, x -> x.getAge() > 10))
+                .addTitle("年龄", Student::getAge)
                 .addTitle("邮箱", Student::getEmail)
                 .addTitle("生日", Student::getBirthday)
                 .addTitle("过期时间", Student::getExpTime)
@@ -61,46 +59,31 @@ public class ExampleController {
                 .addTitle("生日", Student::getBirthday)
                 .addTitle("过期时间", Student::getExpTime)
                 .write(result2);
+
         excelExport.response(response);
     }
 
     @GetMapping(value = "/exportExcelByStyle")
     @Operation(summary = "导出(并设置style)")
     public void exportExcel5(HttpServletRequest request, HttpServletResponse response) throws IOException {
-//        ArrayList<Student> result = createStudentList(60_000);
-//        ArrayList<Teacher> result2 = createTeacherList(60_000);
-//
-//        ExcelExport excelExport = ExcelExport.create();
-//
-//        /*定义一个全局的数据样式  double是千分号和保留两位小数  int是千分号,保留整数*/
-//        short dataFormat_double = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0.00");
-//        short dataFormat_int = excelExport.getBigExcelWriter().getWorkbook().createDataFormat().getFormat("#,##0");
-//
-//        TitleWriter<Student> studentTitleWriter = excelExport.switchNewSheet(Student.class);
-//        studentTitleWriter
-//                .addTitle("用户名", Student::getUserName)
-//                .addTitle("全名", Student::getFullName)
-//                .setDataStyle(cellStyle ->
-//                {
-//                    cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
-//                    cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-//                })
-//                .addTitle("年龄", Student::getAge)
-//                .setDataStyle(student -> student.getAge() > 20,
-//                        cellStyle ->
-//                        {
-//                            cellStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
-//                            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-//                        }
-//                )
-//                .setDataStyle(student -> student.getAge() > 20,
-//                        cellStyle ->
-//                        {
-//                            cellStyle.setDataFormat(dataFormat_double);
-//                        }
-//                )
-//                .write(result)
-//                .response(response);
+        ArrayList<Student> result = createStudentList(60_000);
+        ArrayList<Teacher> result2 = createTeacherList(60_000);
+
+        /*定义一个全局的数据样式  保留两位小数 */
+        DefaultCellStyle customCellStyle = new DefaultCellStyle((workbook, style) -> style.setDataFormat(workbook.createDataFormat().getFormat("#,##0.00")));
+
+
+        ExcelExport excelExport = ExcelExport.create();
+        TitleWriter<Student> studentTitleWriter = excelExport.switchNewSheet(Student.class);
+        studentTitleWriter
+                .addTitle("用户名", Student::getUserName)
+                .addTitle("全名", Student::getFullName,
+                        of(LIGHT_GREEN, x -> x.getAge() > 50))
+                .addTitle("年龄", Student::getAge,
+                        of(customCellStyle, student -> student.getAge() > 50)
+                )
+                .write(result);
+        excelExport.response(response);
     }
 
     /**

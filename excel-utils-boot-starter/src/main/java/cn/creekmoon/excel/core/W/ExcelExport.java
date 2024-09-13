@@ -10,10 +10,12 @@ import cn.hutool.core.text.StrFormatter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Workbook;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashMap;
 
 /**
@@ -37,8 +39,8 @@ public class ExcelExport {
     /*自定义的名称*/
     public String excelName;
 
-    /*共享缓存, 自己想存点啥就放里面*/
-    public HashMap<Object,Object> metadatas = new HashMap<>();
+    /*各个写入器的共享缓存, 自己想存点啥就放里面*/
+    public HashMap<Object, Object> metadatas = new HashMap<>();
 
 
     /*
@@ -54,7 +56,7 @@ public class ExcelExport {
 
     public static ExcelExport create() {
         ExcelExport excelExport = new ExcelExport();
-        excelExport.excelName = "export_result_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm"))+".xlsx";
+        excelExport.excelName = "export_result_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm")) + ".xlsx";
         return excelExport;
     }
 
@@ -95,23 +97,29 @@ public class ExcelExport {
      * @throws IOException
      */
     public void response(HttpServletResponse response) throws IOException {
-        ExcelFileUtils.response(this.stopWrite(), excelName, response);
+        String filePath = this.stopWrite();
+        ExcelFileUtils.response(filePath, excelName, response);
     }
 
 
     /**
      * 停止写入
+     * 1.进行手动重排序  因为在wps/excel中sheet显示顺序与index无关，还有隐藏sheet
+     * 2. 回调各个写入器的onStopWrite方法
      *
      * @return 结果文件绝对路径
      */
     public String stopWrite() {
-        sheetIndex2SheetWriter.values().forEach(Writer::stopWrite);
+
+        Workbook workbook = sheetIndex2SheetWriter.get(0).getWorkbook();
+        sheetIndex2SheetWriter.values()
+                .stream()
+                .sorted(Comparator.comparing(Writer::getSheetIndex))
+                .peek(x -> workbook.setSheetOrder(x.getSheetName(), x.getSheetIndex()))
+                .forEach(Writer::onStopWrite);
+
         return getResultFilePath();
     }
-
-
-
-
 
 
 }

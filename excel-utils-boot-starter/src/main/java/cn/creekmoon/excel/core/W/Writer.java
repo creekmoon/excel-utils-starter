@@ -9,9 +9,10 @@ public abstract class Writer {
 
     @Getter
     protected Integer sheetIndex;
+    @Getter
+    protected String sheetName;
 
-
-    abstract protected Workbook getWorkbook();
+    abstract public Workbook getWorkbook();
 
 
     /**
@@ -23,7 +24,7 @@ public abstract class Writer {
     /**
      * 声明周期钩子函数, 当写入数据时
      */
-    protected void unsafeOnWrite() {
+    protected void onWrite() {
     }
 
     ;
@@ -31,15 +32,15 @@ public abstract class Writer {
     /**
      * 声明周期钩子函数, 当切换sheet页时
      */
-    protected void unsafeOnSwitchSheet() {
+    protected void onSwitchSheet() {
     }
 
     ;
 
     /**
-     * 声明周期钩子函数, 当切换sheet页时
+     * 声明周期钩子函数, 当执行stopWrite时
      */
-    protected void stopWrite() {
+    protected void onStopWrite() {
     }
 
     ;

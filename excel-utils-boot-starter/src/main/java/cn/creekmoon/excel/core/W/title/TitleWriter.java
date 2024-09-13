@@ -3,15 +3,8 @@ package cn.creekmoon.excel.core.W.title;
 import cn.creekmoon.excel.core.W.Writer;
 import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
-import cn.creekmoon.excel.util.ExcelFileUtils;
-import cn.hutool.poi.excel.style.StyleUtil;
-import jakarta.servlet.http.HttpServletResponse;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Function;
@@ -57,7 +50,7 @@ public abstract class TitleWriter<R> extends Writer {
     abstract protected void doWrite(List<R> data);
 
     public TitleWriter<R> write(List<R> data) {
-        unsafeOnWrite();
+        onWrite();
         this.doWrite(data);
         return this;
     }

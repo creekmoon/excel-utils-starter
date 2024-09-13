@@ -4,22 +4,16 @@ import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
-import cn.creekmoon.excel.util.ExcelCellUtils;
-import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.core.collection.ListUtil;
-import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.BigExcelWriter;
 import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.style.StyleUtil;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.util.CellRangeAddress;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,8 +22,6 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
 
 
     protected ExcelExport parent;
-
-    protected String sheetName;
 
 
     /*写入器 hutoolTitleWriter专用*/
@@ -55,6 +47,14 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
         return titles.size();
     }
 
+    @Override
+    protected void onWrite() {
+        super.onWrite();
+
+        getBigExcelWriter().setSheet(sheetName);
+//        getBigExcelWriter().setCurrentRowToEnd();
+        this.initTitles();
+    }
 
     /**
      * 以对象形式写入
@@ -63,10 +63,8 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @return
      */
     @Override
-    public void doWrite(List<R> targetDataList) {
-        getBigExcelWriter().setSheet(sheetName);
-        getBigExcelWriter().setCurrentRowToEnd();
-        this.initTitles();
+    protected void doWrite(List<R> targetDataList) {
+
 //        List<List<Object>> rows =
 //                targetDataList.stream()
 //                        .map(this::changeToCellValues)
@@ -100,7 +98,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
                     if (runningTimeCellStyle == null) {
                         continue;
                     }
-                    getBigExcelWriter().setStyle(runningTimeCellStyle, colIndex, k+startRowIndex);
+                    getBigExcelWriter().setStyle(runningTimeCellStyle, colIndex, k + startRowIndex);
                 }
             }
 
@@ -388,8 +386,6 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
     }
 
 
-
-
     /**
      * 内部操作类,但是暴露出来了,希望最好不要用这个方法
      *
@@ -408,7 +404,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
 
 
     @Override
-    protected Workbook getWorkbook() {
+    public Workbook getWorkbook() {
         return getBigExcelWriter().getWorkbook();
     }
 
@@ -425,20 +421,21 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
         if (cached != null) {
             return (CellStyle) cached;
         }
-        CellStyle newCellStyle = StyleUtil.createDefaultCellStyle(getWorkbook());
-        style.getStyleInitializer().accept(newCellStyle);
+        Workbook workbook = getWorkbook();
+        CellStyle newCellStyle = StyleUtil.createDefaultCellStyle(workbook);
+        style.getStyleInitializer().accept(workbook, newCellStyle);
         parent.metadatas.put(style, newCellStyle);
         return newCellStyle;
     }
 
 
     @Override
-    protected void unsafeOnSwitchSheet() {
+    protected void onSwitchSheet() {
         getBigExcelWriter().setSheet(sheetIndex);
     }
 
     @Override
-    protected void stopWrite() {
+    protected void onStopWrite() {
         //如果已经关闭了, 就跳过
         if (!parent.metadatas.containsKey("CLOSED")) {
             getBigExcelWriter().close();
