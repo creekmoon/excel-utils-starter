@@ -60,7 +60,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @return
      */
     @Override
-    public HutoolTitleWriter<R> write(List<R> targetDataList) {
+    public void doWrite(List<R> targetDataList) {
         getBigExcelWriter().setSheet(sheetName);
         getBigExcelWriter().setCurrentRowToEnd();
         this.initTitles();
@@ -115,7 +115,6 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
 //        }
 
 
-        return this;
     }
 
 
@@ -389,17 +388,6 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
 
 
     /**
-     * 响应并清除文件
-     *
-     * @param response
-     * @throws IOException
-     */
-    public void response(HttpServletResponse response) throws IOException {
-        ExcelFileUtils.response(parent.stopWrite(), parent.excelName, response);
-    }
-
-
-    /**
      * 内部操作类,但是暴露出来了,希望最好不要用这个方法
      *
      * @return
@@ -447,7 +435,8 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
     }
 
     @Override
-    protected void unsafeOnStopWrite() {
+    protected void stopWrite() {
+        //如果已经关闭了, 就跳过
         if (!parent.metadatas.containsKey("CLOSED")) {
             getBigExcelWriter().close();
             parent.metadatas.put("CLOSED", null);

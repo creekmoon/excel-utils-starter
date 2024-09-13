@@ -3,10 +3,13 @@ package cn.creekmoon.excel.core.W.title;
 import cn.creekmoon.excel.core.W.Writer;
 import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
+import cn.creekmoon.excel.util.ExcelFileUtils;
 import cn.hutool.poi.excel.style.StyleUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,15 +47,20 @@ public abstract class TitleWriter<R> extends Writer {
      * 添加标题
      */
     public TitleWriter<R> addTitle(String titleName, Function<R, Object> valueFunction, ConditionCellStyle<R>... conditionStyle) {
-        titles.add(Title.of(titleName, valueFunction,conditionStyle));
+        titles.add(Title.of(titleName, valueFunction, conditionStyle));
         return this;
     }
 
 
     public abstract int countTitles();
 
+    abstract protected void doWrite(List<R> data);
 
-    public abstract HutoolTitleWriter<R> write(List<R> data);
+    public TitleWriter<R> write(List<R> data) {
+        unsafeOnWrite();
+        this.doWrite(data);
+        return this;
+    }
 
 
 }

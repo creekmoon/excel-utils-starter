@@ -1,6 +1,5 @@
 package cn.creekmoon.excel.core.W;
 
-import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
 import lombok.Getter;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -40,7 +39,7 @@ public abstract class Writer {
     /**
      * 声明周期钩子函数, 当切换sheet页时
      */
-    protected void unsafeOnStopWrite() {
+    protected void stopWrite() {
     }
 
     ;

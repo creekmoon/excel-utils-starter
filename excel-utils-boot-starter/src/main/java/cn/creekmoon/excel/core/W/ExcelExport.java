@@ -10,13 +10,11 @@ import cn.hutool.core.text.StrFormatter;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.CellStyle;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author JY
@@ -107,7 +105,7 @@ public class ExcelExport {
      * @return 结果文件绝对路径
      */
     public String stopWrite() {
-        sheetIndex2SheetWriter.values().forEach(Writer::unsafeOnStopWrite);
+        sheetIndex2SheetWriter.values().forEach(Writer::stopWrite);
         return getResultFilePath();
     }
 

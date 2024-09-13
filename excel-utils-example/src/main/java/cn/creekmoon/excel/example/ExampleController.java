@@ -54,8 +54,8 @@ public class ExampleController {
                 .addTitle("邮箱", Student::getEmail)
                 .addTitle("生日", Student::getBirthday)
                 .addTitle("过期时间", Student::getExpTime)
-                .write(result2)
-                .response(response);
+                .write(result2);
+        excelExport.response(response);
     }
 
     @GetMapping(value = "/exportExcelByStyle")
