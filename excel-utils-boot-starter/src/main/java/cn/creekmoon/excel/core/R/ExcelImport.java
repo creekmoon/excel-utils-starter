@@ -75,7 +75,12 @@ public class ExcelImport {
      * @return
      */
     public <T> TitleReader<T> switchSheet(int sheetIndex, Supplier<T> supplier) {
-
+        if (supplier.get()==supplier.get()) {
+            throw new RuntimeException("导出的对象不支持重写 equal() 方法. 请勿使用@Data注解!");
+        }
+        if (supplier.get()==supplier.get()) {
+            throw new RuntimeException("导出的对象不支持重写 equal() 方法. 请勿使用@Data注解!");
+        }
         //如果已经存在读取器
         TitleReader sheetReader = (TitleReader) this.sheetIndex2ReaderBiMap.get(sheetIndex);
         if (sheetReader != null) {

@@ -8,7 +8,7 @@ import cn.creekmoon.excel.core.R.readerResult.ReaderResult;
 import cn.creekmoon.excel.core.R.readerResult.title.TitleReaderResult;
 import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.core.W.title.TitleWriter;
-import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
+import cn.creekmoon.excel.core.W.title.ext.ExcelCellStyle;
 import cn.hutool.core.util.RandomUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +26,9 @@ import java.util.ArrayList;
 import java.util.Date;
 
 import static cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle.of;
-import static cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle.*;
+import static cn.creekmoon.excel.core.W.title.ext.ExcelCellStyle.*;
+import static cn.creekmoon.excel.example.Student.createStudentList;
+import static cn.creekmoon.excel.example.Teacher.createTeacherList;
 
 @Tag(name = "测试API")
 @RestController
@@ -70,7 +72,7 @@ public class ExampleController {
         ArrayList<Teacher> result2 = createTeacherList(60_000);
 
         /*定义一个全局的数据样式  保留两位小数 */
-        DefaultCellStyle customCellStyle = new DefaultCellStyle((workbook, style) -> style.setDataFormat(workbook.createDataFormat().getFormat("#,##0.00")));
+        ExcelCellStyle customCellStyle = new ExcelCellStyle((workbook, style) -> style.setDataFormat(workbook.createDataFormat().getFormat("#,##0.00")));
 
 
         ExcelExport excelExport = ExcelExport.create();
@@ -146,46 +148,8 @@ public class ExampleController {
     }
 
 
-    private Student createNewStudent() {
-        Student student = new Student();
-        //随机年龄
-        student.setAge(RandomUtil.randomInt(1, 100));
-        student.setBirthday(new Date());
-        //随机生成邮箱
-        student.setEmail(RandomUtil.randomString(10) + "@qq.com");
-        //随机生成时间
-        student.setExpTime(LocalDateTime.now());
-        student.setFullName(RandomUtil.randomString(5));
-        student.setUserName(RandomUtil.randomString(5));
-        student.setBirthday(new Date());
-        return student;
-    }
 
-    private Teacher createNewTeacher() {
-        Teacher teacher = new Teacher();
-        //随机年龄
-        teacher.setWorkYear(RandomUtil.randomInt(1, 10));
-        teacher.setTeacherName(RandomUtil.randomString(5));
-        return teacher;
-    }
 
-    private ArrayList<Student> createStudentList(int size) {
-        ArrayList<Student> result = new ArrayList<>();
-        //加入数据
-        for (int i = 0; i < size; i++) {
-            result.add(createNewStudent());
-        }
-        return result;
-    }
-
-    private ArrayList<Teacher> createTeacherList(int size) {
-        ArrayList<Teacher> result = new ArrayList<>();
-        //加入数据
-        for (int i = 0; i < size; i++) {
-            result.add(createNewTeacher());
-        }
-        return result;
-    }
 
 
 }

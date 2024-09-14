@@ -35,7 +35,7 @@ public class HutoolCellReader<R> extends CellReader<R> {
 
     public HutoolCellReader(ExcelImport parent, Integer sheetIndex, Supplier newObjectSupplier) {
         super(parent);
-        super.readerResult = new TitleReaderResult<R>();
+        super.readerResult = new CellReaderResult();
         super.sheetIndex = sheetIndex;
         super.newObjectSupplier = newObjectSupplier;
     }
@@ -117,7 +117,7 @@ public class HutoolCellReader<R> extends CellReader<R> {
 
         //新版读取 使用SAX读取模式
         ExcelUtilsConfig.importParallelSemaphore.acquire();
-        ((CellReaderResult) getReadResult()).readStartTime = LocalDateTime.now();
+        getReadResult().readStartTime = LocalDateTime.now();
         try {
             /*模版一致性检查:  获取声明的所有CELL, 接下来如果读取到cell就会移除, 当所有cell命中时说明单元格是一致的.*/
             Set<String> templateConsistencyCheckCells = new HashSet<>();

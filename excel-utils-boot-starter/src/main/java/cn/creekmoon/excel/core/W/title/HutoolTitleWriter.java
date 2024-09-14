@@ -2,7 +2,7 @@ package cn.creekmoon.excel.core.W.title;
 
 import cn.creekmoon.excel.core.W.ExcelExport;
 import cn.creekmoon.excel.core.W.title.ext.ConditionCellStyle;
-import cn.creekmoon.excel.core.W.title.ext.DefaultCellStyle;
+import cn.creekmoon.excel.core.W.title.ext.ExcelCellStyle;
 import cn.creekmoon.excel.core.W.title.ext.Title;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.StrUtil;
@@ -416,7 +416,7 @@ public class HutoolTitleWriter<R> extends TitleWriter<R> {
      * @return
      */
     @Override
-    protected CellStyle getRunningTimeCellStyle(DefaultCellStyle style) {
+    protected CellStyle getRunningTimeCellStyle(ExcelCellStyle style) {
         Object cached = parent.metadatas.get(style);
         if (cached != null) {
             return (CellStyle) cached;
